@@ -52,26 +52,26 @@ CampusCare has a platform-level **Platform Owner** and four campus-level roles: 
 
 ## Permission matrix
 
-| Action | Platform Owner | Campus Admin | Teacher | Student CR | Student |
-|---|---|---|---|---|---|
-| Create/manage campus tenant | Yes | No | No | No | No |
-| Campus user management | No by default | Own campus | No | No | No |
-| View dashboard | Platform metrics | Campus-wide | Assigned data | Own class | Own data |
-| Create community | No | No | Authorized | No | No |
-| Edit/delete community | No | No | Own communities | No | No |
-| Manage members | No | No | Own communities | Add students only | No |
-| Announcements | No | Yes | Only if explicitly enabled | No | No |
-| Notes | No | No | Yes | Yes | Yes |
-| Assignments | No | No | Yes | No | No |
-| Discussions | No | No | Yes | Yes | Yes |
-| Submit report | No | Yes | Yes | Yes | Yes |
-| View all reports | No | Own campus | No | No | No |
-| Assign reports to support team | No | Yes | No | No | No |
-| Update report status | No | Yes | No | No | No |
-| Manage all Lost & Found | No | Own campus | Own posts | Own posts | Own posts |
-| Create/manage exams & seating | No | Own campus | No unless explicitly delegated | No | No |
-| View exam duties | No | Yes | Assigned duties | No | No |
-| View exam schedule/seating | No | Yes | Assigned scope | Own class | Own record |
+| Action |  Campus Admin | Teacher | Student CR | Student |
+|---|---|---|---|---|
+| Create/manage campus tenant | No | No | No | No |
+| Campus user management | Own campus | No | No | No |
+| View dashboard | Campus-wide | Assigned data | Own class | Own data |
+| Create community | No | Authorized | No | No |
+| Edit/delete community | No | Own communities | No | No |
+| Manage members | No | Own communities | Add students only | No |
+| Announcements | Yes | Only if explicitly enabled | No | No |
+| Notes | No | Yes | Yes | Yes |
+| Assignments | No | Yes | No | No |
+| Discussions | No | Yes | Yes | Yes |
+| Submit report | Yes | Yes | Yes | Yes |
+| View all reports | Own campus | No | No | No |
+| Assign reports to support team | Yes | No | No | No |
+| Update report status | Yes | No | No | No |
+| Manage all Lost & Found | Own campus | Own posts | Own posts | Own posts |
+| Create/manage exams & seating | Own campus | No unless explicitly delegated | No | No |
+| View exam duties | Yes | Assigned duties | No | No |
+| View exam schedule/seating | Yes | Assigned scope | Own class | Own record |
 
 All permissions must be enforced server-side. Hiding a button in React is not authorization.
 
