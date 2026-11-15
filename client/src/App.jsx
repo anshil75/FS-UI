@@ -418,7 +418,101 @@ function Profile(){
 }
 
 /* ─── Lost & Found ───────────────────────────── */
-function SecureImage({src,alt}){const [url,setUrl]=useState("");useEffect(()=>{let objectUrl;const id=String(src||"").split("/").pop();if(!id)return;const token=sessionStorage.getItem("campuscare_token");fetch(`${API_URL}/api/lost-found/images/${id}`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{objectUrl=URL.createObjectURL(b);setUrl(objectUrl)}).catch(()=>{});return()=>objectUrl&&URL.revokeObjectURL(objectUrl)},[src]);return url?<img src={url} alt={alt} style={{width:150,height:110,objectFit:"cover",margin:"6px"}}/>:null}
+
+function ZoomableImage({ src, alt = "Image", className = "" }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
+
+  if (!src) return null;
+
+  return (
+    <>
+      <img
+        src={src}
+        alt={alt}
+        className={`zoomable-image ${className}`}
+        onClick={() => setIsOpen(true)}
+        title="Click to enlarge"
+      />
+
+      {isOpen && (
+        <div
+          className="image-lightbox"
+          onClick={() => setIsOpen(false)}
+        >
+          <button
+            type="button"
+            className="lightbox-close"
+            onClick={() => setIsOpen(false)}
+            aria-label="Close image"
+          >
+            ×
+          </button>
+
+          <img
+            src={src}
+            alt={alt}
+            className="lightbox-preview"
+            onClick={(event) => event.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+
+function SecureImage({ src, alt }) {
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    let objectUrl;
+
+    const id = String(src || "").split("/").pop();
+    if (!id) return;
+
+    const token = sessionStorage.getItem("campuscare_token");
+
+    fetch(`${API_URL}/api/lost-found/images/${id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) =>
+        response.ok ? response.blob() : Promise.reject()
+      )
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {});
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+
+  return url ? (
+    <ZoomableImage
+      src={url}
+      alt={alt}
+      className="secure-preview-image"
+    />
+  ) : null;
+}
 
 function LostFound(){
   const {user}=useAuth();
@@ -443,8 +537,40 @@ function LostFound(){
   }catch(e){setError(e.message)}finally{setBusy(false)}}
 
   async function markResolved(id){try{await api(`/api/lost-found/${id}/status`,{method:"PATCH",body:json({status:"Resolved"})});await load()}catch(e){setError(e.message)}}
-  async function sendClaim(id){try{await api(`/api/lost-found/${id}/claims`,{method:"POST",body:json({message:claim[id]?.message||"This item belongs to me.",proofDescription:claim[id]?.proof||"I can identify specific details of this item."})});await load()}catch(e){setError(e.message)}}
-  async function review(id,decision){try{await api(`/api/lost-found/claims/${id}/review`,{method:"PATCH",body:json({decision,reviewMessage:"Reviewed by campus staff"})});await load()}catch(e){setError(e.message)}}
+async function sendClaim(id) {
+  try {
+    setBusy(true);
+    setError("");
+
+    const fd = new FormData();
+
+    fd.append("message", claim[id]?.message || "");
+    fd.append("proofDescription", claim[id]?.proof || "");
+
+    (claim[id]?.files || []).forEach((file) => {
+      fd.append("proofImages", file);
+    });
+
+    await api(`/api/lost-found/${id}/claims`, {
+      method: "POST",
+      body: fd,
+    });
+
+    const data = await api("/api/lost-found/claims");
+    setClaims(data.claims || []);
+
+    await load();
+
+    setClaim((prev) => ({
+      ...prev,
+      [id]: { message: "", proof: "", files: [] },
+    }));
+  } catch (e) {
+    setError(e.message);
+  } finally {
+    setBusy(false);
+  }
+}  async function review(id,decision){try{await api(`/api/lost-found/claims/${id}/review`,{method:"PATCH",body:json({decision,reviewMessage:"Reviewed by campus staff"})});await load()}catch(e){setError(e.message)}}
   async function deleteItem(id){if(!confirm("Delete this post?"))return;try{await api(`/api/lost-found/${id}`,{method:"DELETE"});await load()}catch(e){setError(e.message)}}
 
   const isOwner=(i)=>String(i.postedBy?._id||i.postedBy)===String(user.id||user._id);
@@ -468,6 +594,24 @@ function LostFound(){
             {i.itemType==="Found"&&i.status==="Open"&&!isOwner(i)&&<div style={{width:"100%"}}>
               <textarea placeholder="Claim message" value={claim[i._id]?.message||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],message:e.target.value}})}/>
               <textarea placeholder="Ownership proof details" value={claim[i._id]?.proof||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],proof:e.target.value}})}/>
+              <div className="claim-image-upload">
+  <label>Upload Ownership Proof (Optional)</label>
+  <input
+    type="file"
+    accept="image/jpeg,image/png,image/webp"
+    multiple
+    onChange={(e) =>
+      setClaim((prev) => ({
+        ...prev,
+        [i._id]: {
+          ...prev[i._id],
+          proofImages: Array.from(e.target.files).slice(0, 3),
+        },
+      }))
+    }
+  />
+  <small>You can upload up to 3 images (JPG, PNG, WEBP).</small>
+</div>
               <button className="btn s" onClick={()=>sendClaim(i._id)}>Submit claim</button>
             </div>}
           </div>
@@ -506,11 +650,11 @@ function SecureReportImage({ src }) {
     const token = sessionStorage.getItem("campuscare_token");
 
     fetch(`${API_URL}/api/reports/images/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     })
-      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((response) =>
+        response.ok ? response.blob() : Promise.reject()
+      )
       .then((blob) => {
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
@@ -523,18 +667,14 @@ function SecureReportImage({ src }) {
   }, [src]);
 
   return url ? (
-    <img
+    <ZoomableImage
       src={url}
       alt="Report image"
-      style={{
-        width: 150,
-        height: 110,
-        objectFit: "cover",
-        margin: "6px",
-      }}
+      className="secure-preview-image"
     />
   ) : null;
 }
+
 
 function Reports() {
   const { user } = useAuth();
@@ -1145,7 +1285,42 @@ function Community(){
 }
 
 /* ─── Examinations ───────────────────────────── */
-function ExamChart({examId}){const [src,setSrc]=useState("");useEffect(()=>{let objectUrl;const token=sessionStorage.getItem("campuscare_token");fetch(`${API_URL}/api/exams/${examId}/seating-chart`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{objectUrl=URL.createObjectURL(b);setSrc(objectUrl)}).catch(()=>{});return()=>{if(objectUrl)URL.revokeObjectURL(objectUrl)}},[examId]);return src?<div className="exam-chart"><img src={src} alt="Exam seating chart"/></div>:null;}
+
+function ExamChart({ examId }) {
+  const [src, setSrc] = useState("");
+
+  useEffect(() => {
+    let objectUrl;
+
+    const token = sessionStorage.getItem("campuscare_token");
+
+    fetch(`${API_URL}/api/exams/${examId}/seating-chart`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((response) =>
+        response.ok ? response.blob() : Promise.reject()
+      )
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch(() => {});
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [examId]);
+
+  return src ? (
+    <div className="exam-chart">
+      <ZoomableImage
+        src={src}
+        alt="Exam seating chart"
+        className="exam-chart-image"
+      />
+    </div>
+  ) : null;
+}
 
 function Examinations(){
   const {user}=useAuth();

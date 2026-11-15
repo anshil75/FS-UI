@@ -46,6 +46,21 @@ const formatItemImages = (item) => {
   return data;
 };
 
+const formatClaim = (claim) => {
+  const data = claim.toObject();
+
+  data.proofImages = (data.proofImages || []).map((imageId) =>
+    createImageUrl(imageId)
+  );
+
+  if (data.item && data.item.images) {
+    data.item.images = data.item.images.map((imageId) =>
+      createImageUrl(imageId)
+    );
+  }
+
+  return data;
+};
 // 1. Create a Lost or Found item
 const createItem = async (req, res) => {
   const uploadedImageIds = [];
@@ -390,6 +405,8 @@ const getImage = async (req, res) => {
 
 // 5. Submit a claim for a Found item
 const submitClaim = async (req, res) => {
+  const uploadedImageIds = [];
+
   try {
     const { message, proofDescription } = req.body;
 
@@ -442,11 +459,31 @@ const submitClaim = async (req, res) => {
       });
     }
 
+    const files = req.files || [];
+
+    if (files.length > 3) {
+      return res.status(400).json({
+        success: false,
+        message: "Maximum 3 proof images are allowed",
+      });
+    }
+
+    for (const file of files) {
+      const imageId = await uploadImageToGridFS(
+        file,
+        req.user._id,
+        req.campus._id
+      );
+
+      uploadedImageIds.push(imageId);
+    }
+
     const claim = await LostFoundClaim.create({
       item: item._id,
       claimedBy: req.user._id,
       message: message.trim(),
       proofDescription: proofDescription.trim(),
+      proofImages: uploadedImageIds,
     });
 
     item.status = "Claim Pending";
@@ -455,9 +492,17 @@ const submitClaim = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Claim submitted successfully. Awaiting verification.",
-      claim,
+      claim: formatClaim(claim),
     });
   } catch (error) {
+    for (const imageId of uploadedImageIds) {
+      try {
+        await getGridFSBucket().delete(imageId);
+      } catch (cleanupError) {
+        console.error("Claim image cleanup error:", cleanupError.message);
+      }
+    }
+
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
@@ -465,7 +510,7 @@ const submitClaim = async (req, res) => {
       });
     }
 
-    console.error("Submit claim error:", error.message);
+    console.error("Submit claim error:", error);
 
     return res.status(500).json({
       success: false,
@@ -473,7 +518,6 @@ const submitClaim = async (req, res) => {
     });
   }
 };
-
 // 6. Get claims
 const getClaims = async (req, res) => {
   try {
@@ -495,17 +539,23 @@ const getClaims = async (req, res) => {
       filter.status = req.query.status;
     }
 
-    const claims = await LostFoundClaim.find(filter)
-      .populate("item")
-      .populate("claimedBy", "name email role")
-      .populate("reviewedBy", "name role")
-      .sort({ createdAt: -1 });
+   const claims = await LostFoundClaim.find(filter)
+  .populate({
+    path: "item",
+    populate: [
+      { path: "postedBy", select: "name role" },
+      { path: "verifiedBy", select: "name role" },
+    ],
+  })
+  .populate("claimedBy", "name email role")
+  .populate("reviewedBy", "name role")
+  .sort({ createdAt: -1 });
 
-    return res.status(200).json({
-      success: true,
-      total: claims.length,
-      claims,
-    });
+  return res.status(200).json({
+  success: true,
+  total: claims.length,
+  claims: claims.map(formatClaim),
+});
   } catch (error) {
     console.error("Get claims error:", error.message);
 

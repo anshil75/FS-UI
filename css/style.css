@@ -677,3 +677,87 @@ nav a {
 main {
   flex: 1 0 auto;
 }
+
+
+
+
+/* Click to zoom - reusable image styles */
+
+.zoomable-image {
+  cursor: zoom-in;
+  transition: transform 0.2s ease;
+}
+
+.zoomable-image:hover {
+  transform: scale(1.02);
+}
+
+.secure-preview-image {
+  width: 150px;
+  height: 110px;
+  object-fit: cover;
+  margin: 6px;
+  border-radius: 8px;
+}
+
+.exam-chart-image {
+  display: block;
+  max-width: 100%;
+  max-height: 320px;
+  object-fit: contain;
+  cursor: zoom-in;
+  border-radius: 8px;
+}
+
+/* Full-screen image preview */
+
+.image-lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(0, 0, 0, 0.94);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 50px 20px 20px;
+  cursor: zoom-out;
+}
+
+.lightbox-preview {
+  max-width: 95vw;
+  max-height: 90vh;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  border-radius: 6px;
+  cursor: default;
+}
+
+.lightbox-close {
+  position: absolute;
+  top: 12px;
+  right: 24px;
+  color: white;
+  background: transparent;
+  border: none;
+  font-size: 42px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 100000;
+}
+
+@media (max-width: 600px) {
+  .image-lightbox {
+    padding: 45px 10px 15px;
+  }
+
+  .lightbox-preview {
+    max-width: 100%;
+    max-height: 85vh;
+  }
+
+  .lightbox-close {
+    right: 15px;
+    top: 8px;
+  }
+}
