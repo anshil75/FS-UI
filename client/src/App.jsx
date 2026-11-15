@@ -1178,6 +1178,7 @@ async function submitHelpMessage(id) {
                 </div>
 
                 {/* Teacher can share observations */}
+{/* Teacher can share observations */}
 {user?.role === "Teacher" && (
   <div style={{ marginTop: 12 }}>
     <button
@@ -1195,9 +1196,7 @@ async function submitHelpMessage(id) {
 
     {helpReportId === report._id && (
       <div style={{ marginTop: 12 }}>
-        <label>
-          Share what you witnessed or how you can help
-        </label>
+        <label>Share what you witnessed or how you can help</label>
 
         <textarea
           rows={3}
@@ -1230,22 +1229,29 @@ async function submitHelpMessage(id) {
         </div>
       </div>
     )}
-
-    {/* Previously shared observations */}
-    {(report.helpMessages || []).map((item, index) => (
-      <div
-        key={item._id || index}
-        className="card"
-        style={{ marginTop: 10 }}
-      >
-        <b>{item.teacher?.name || "Teacher"}</b>
-        <p>{item.message}</p>
-        <small className="mut">
-          {new Date(item.createdAt).toLocaleString()}
-        </small>
-      </div>
-    ))}
   </div>
+)}
+
+{/* Observations visible to Admin and Teachers */}
+{["Admin", "Teacher"].includes(user?.role) &&
+  (report.helpMessages || []).length > 0 && (
+    <div style={{ marginTop: 14 }}>
+      <h4>Teacher Observations</h4>
+
+      {report.helpMessages.map((item, index) => (
+        <div
+          key={item._id || index}
+          className="card"
+          style={{ marginTop: 10 }}
+        >
+          <b>{item.teacher?.name || "Teacher"}</b>
+          <p>{item.message}</p>
+          <small className="mut">
+            {new Date(item.createdAt).toLocaleString()}
+          </small>
+        </div>
+      ))}
+    </div>
 )}
 
 
