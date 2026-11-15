@@ -3,9 +3,9 @@ const Exam=require("../models/Exam"), Seat=require("../models/ExamSeat"), Duty=r
 const getExams=async(req,res)=>{try{
  const [exams,allSeats,duties,requests,teachers]=await Promise.all([
   Exam.find().select("+seatingChartType").sort({date:1}),
-  Seat.find().populate("exam").populate("student","name email role").sort({createdAt:-1}),
+  Seat.find().populate("exam").populate("student", "name email role rollNumber").sort({createdAt:-1}),
   Duty.find().populate("exam").populate("teacher","name email role").sort({date:1}),
-  req.user.role==="Admin"?Request.find().populate("exam").populate("student","name email").sort({createdAt:-1}):Request.find({student:req.user._id}).populate("exam").populate("student","name email"),
+  req.user.role==="Admin"?Request.find().populate("exam").populate("student", "name email role rollNumber").sort({createdAt:-1}):Request.find({student:req.user._id}).populate("student", "name email role rollNumber"),
   req.user.role==="Admin"?User.find({role:"Teacher",isActive:true}).select("name email role").sort({name:1}):Promise.resolve([])
  ]);
  const seats=req.user.role==="Admin"?allSeats:allSeats.filter(s=>String(s.student?._id)===String(req.user._id));

@@ -5,6 +5,8 @@ const schema = new mongoose.Schema({
  hall:{type:String,required:true,trim:true},
  seat:{type:String,required:true,trim:true}
 },{timestamps:true});
-schema.index({exam:1,student:1},{unique:true});
-schema.plugin(require("../tenancy/tenantScopePlugin"));
+schema.index(
+  { tenantId: 1, exam: 1, student: 1 },
+  { unique: true }
+);schema.plugin(require("../tenancy/tenantScopePlugin"));
 module.exports=mongoose.model("ExamSeat",schema);

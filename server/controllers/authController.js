@@ -4,6 +4,9 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const Community = require("../models/Community");
 const { cacheDeletePrefix } = require("../middleware/cache");
+
+const STUDENT_ROLES = ["Student", "Student CR"];
+
 const generateToken = (user) => {
   return jwt.sign(
     {
@@ -15,37 +18,133 @@ const generateToken = (user) => {
   );
 };
 
-// Register Student
+const escapeRegex = (value) =>
+  String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const userResponse = (user, campus) => ({
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  personalEmail: user.personalEmail || "",
+  phoneNumber: user.phoneNumber || "",
+  role: user.role,
+  course: user.course || "",
+  year: user.year,
+  className: user.className || "",
+  section: user.section || "",
+  rollNumber: user.rollNumber || "",
+  isActive: user.isActive,
+  campusId: String(campus._id),
+  campusName: campus.name,
+  campusSlug: campus.slug,
+});
+
+const updateStudentCommunities = async (user) => {
+  if (!STUDENT_ROLES.includes(user.role)) return;
+
+  await Community.updateMany(
+    { members: user._id },
+    { $pull: { members: user._id } }
+  );
+
+  await Community.updateMany(
+    {
+      year: user.year,
+      section: {
+        $regex: `^${escapeRegex(user.section)}$`,
+        $options: "i",
+      },
+    },
+    {
+      $addToSet: { members: user._id },
+    }
+  );
+
+  cacheDeletePrefix("communities:");
+};
+
+// REGISTER STUDENT
 const register = async (req, res) => {
   try {
-const { name, email, password, year, section, rollNumber } = req.body;
-    // Required fields
-   if (!name || !email || !password || !rollNumber) {
-  return res.status(400).json({
-    success: false,
-    message: "Name, email, password and roll number are required",
-  });
-}
+    const {
+      name,
+      email,
+      password,
+      year,
+      section,
+      rollNumber,
+      course,
+      personalEmail,
+      phoneNumber,
+    } = req.body;
 
-    if (password.length < 8) {
+    if (!name || !email || !password || !year || !section || !rollNumber || !course) {
+      return res.status(400).json({
+        success: false,
+        message: "Name, email, password, course, year, section and roll number are required",
+      });
+    }
+
+    if (typeof password !== "string" || password.length < 8) {
       return res.status(400).json({
         success: false,
         message: "Password must contain at least 8 characters",
       });
     }
-const normalizedEmail = String(email).trim().toLowerCase();
-const normalizedRollNumber = String(rollNumber).trim().toUpperCase();
 
-if (!normalizedRollNumber) {
-  return res.status(400).json({
-    success: false,
-    message: "Roll number is required",
-  });
-}
-    // Check existing account
-    const existingUser = await User.findOne({
-  email: normalizedEmail,
-});
+    if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80) {
+      return res.status(400).json({
+        success: false,
+        message: "Name must be 2–80 characters",
+      });
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const normalizedRollNumber = String(rollNumber).trim().toUpperCase();
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid campus email",
+      });
+    }
+
+    if (![1, 2, 3, 4].includes(Number(year))) {
+      return res.status(400).json({
+        success: false,
+        message: "Year must be between 1 and 4",
+      });
+    }
+
+    if (!normalizedRollNumber || !String(section).trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Section and roll number are required",
+      });
+    }
+
+    if (typeof course !== "string" || !course.trim() || course.trim().length > 120) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid course",
+      });
+    }
+
+    if (personalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(personalEmail).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid personal email",
+      });
+    }
+
+    if (phoneNumber && !/^[+\d\s()-]{7,20}$/.test(String(phoneNumber).trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Enter a valid phone number",
+      });
+    }
+
+    const existingUser = await User.findOne({ email: normalizedEmail });
 
     if (existingUser) {
       return res.status(409).json({
@@ -53,70 +152,41 @@ if (!normalizedRollNumber) {
         message: "An account with this email already exists",
       });
     }
-const existingRollNumber = await User.findOne({
-  rollNumber: normalizedRollNumber,
-  role: { $in: ["Student", "Student CR"] },
-});
 
-if (existingRollNumber) {
-  return res.status(409).json({
-    success: false,
-    message: "This roll number is already registered in your campus",
-  });
-}
-    // Hash password
+    const existingRollNumber = await User.findOne({
+      rollNumber: normalizedRollNumber,
+      role: { $in: STUDENT_ROLES },
+    });
+
+    if (existingRollNumber) {
+      return res.status(409).json({
+        success: false,
+        message: "This roll number is already registered in your campus",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Public registration always creates a Student.
-    // Admin/Teacher/CR roles will be assigned through authorized workflows.
     const user = await User.create({
-  name: name.trim(),
-  email: normalizedEmail,
-  password: hashedPassword,
-  role: "Student",
-  year: Number(year || 1),
-  section: String(section || "").trim(),
-  rollNumber: normalizedRollNumber,
-});
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "Student",
+      year: Number(year),
+      section: String(section).trim(),
+      rollNumber: normalizedRollNumber,
+      course: course.trim(),
+      personalEmail: personalEmail ? String(personalEmail).trim().toLowerCase() : "",
+      phoneNumber: phoneNumber ? String(phoneNumber).trim() : "",
+    });
 
-    // Automatically add the new student to matching communities.
-// Tenant plugin ensures only this campus's communities are updated.
-await Community.updateMany(
-  {
-    year: user.year,
-    section: {
-      $regex: `^${String(user.section).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-      $options: "i",
-    },
-  },
-  {
-    $addToSet: { members: user._id },
-  }
-);
+    await updateStudentCommunities(user);
 
-
-// Clear community cache
-cacheDeletePrefix("communities:");
-
-const token = generateToken(user);
     return res.status(201).json({
       success: true,
       message: "Registration successful",
-      token,
-      user: {
-        user: {
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  year: user.year,
-  section: user.section,
-  rollNumber: user.rollNumber,
-  campusId: String(req.campus._id),
-  campusName: req.campus.name,
-  campusSlug: req.campus.slug,
-},
-      },
+      token: generateToken(user),
+      user: userResponse(user, req.campus),
     });
   } catch (error) {
     console.error("Registration error:", error.message);
@@ -124,7 +194,7 @@ const token = generateToken(user);
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "Email or roll number is already registered in this campus",      
+        message: "Email or roll number is already registered in this campus",
       });
     }
 
@@ -135,7 +205,7 @@ const token = generateToken(user);
   }
 };
 
-// Login
+// LOGIN
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -148,10 +218,10 @@ const login = async (req, res) => {
     }
 
     const user = await User.findOne({
-      email: email.toLowerCase().trim(),
+      email: String(email).trim().toLowerCase(),
     }).select("+password");
 
-    if (!user) {
+    if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
@@ -165,34 +235,11 @@ const login = async (req, res) => {
       });
     }
 
-    const passwordMatch = await bcrypt.compare(password, user.password);
-
-    if (!passwordMatch) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid email or password",
-      });
-    }
-
-const token = generateToken(user);
     return res.status(200).json({
       success: true,
       message: "Login successful",
-      token,
-      user: {
-        user: {
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  year: user.year,
-  section: user.section,
-  rollNumber: user.rollNumber,
-  campusId: String(req.campus._id),
-  campusName: req.campus.name,
-  campusSlug: req.campus.slug,
-},
-      },
+      token: generateToken(user),
+      user: userResponse(user, req.campus),
     });
   } catch (error) {
     console.error("Login error:", error.message);
@@ -203,108 +250,174 @@ const token = generateToken(user);
     });
   }
 };
-// Get currently logged-in user
-const getMe = async (req, res) => {
-  const user = req.user;
 
+// GET CURRENT USER
+const getMe = async (req, res) => {
   return res.status(200).json({
     success: true,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      year: user.year,
-      section: user.section,
-      rollNumber: user.rollNumber,
-      campusId: String(req.campus._id),
-      campusName: req.campus.name,
-      campusSlug: req.campus.slug,
-    },
+    user: userResponse(req.user, req.campus),
   });
 };
 
-// Update own profile (name, year, className, section — NOT role)
+// UPDATE OWN PROFILE
 const updateProfile = async (req, res) => {
   try {
-    const { name, year,  section } = req.body;
+    const {
+      name,
+      year,
+      section,
+      course,
+      personalEmail,
+      phoneNumber,
+    } = req.body;
+
     const user = req.user;
 
     if (name !== undefined) {
-      if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80)
-        return res.status(400).json({ success: false, message: "Name must be 2–80 characters" });
+      if (typeof name !== "string" || name.trim().length < 2 || name.trim().length > 80) {
+        return res.status(400).json({
+          success: false,
+          message: "Name must be 2–80 characters",
+        });
+      }
+
       user.name = name.trim();
     }
-    if (year !== undefined) user.year = Number(year);
-    if (section !== undefined) user.section = String(section).trim();
+
+    if (course !== undefined) {
+      if (typeof course !== "string" || !course.trim() || course.trim().length > 120) {
+        return res.status(400).json({
+          success: false,
+          message: "Enter a valid course",
+        });
+      }
+
+      user.course = course.trim();
+    }
+
+    if (personalEmail !== undefined) {
+      if (personalEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(personalEmail).trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Enter a valid personal email",
+        });
+      }
+
+      user.personalEmail = personalEmail
+        ? String(personalEmail).trim().toLowerCase()
+        : "";
+    }
+
+    if (phoneNumber !== undefined) {
+      if (phoneNumber && !/^[+\d\s()-]{7,20}$/.test(String(phoneNumber).trim())) {
+        return res.status(400).json({
+          success: false,
+          message: "Enter a valid phone number",
+        });
+      }
+
+      user.phoneNumber = String(phoneNumber).trim();
+    }
+
+    if (STUDENT_ROLES.includes(user.role)) {
+      if (year !== undefined) {
+        if (![1, 2, 3, 4].includes(Number(year))) {
+          return res.status(400).json({
+            success: false,
+            message: "Year must be between 1 and 4",
+          });
+        }
+
+        user.year = Number(year);
+      }
+
+      if (section !== undefined) {
+        if (!String(section).trim()) {
+          return res.status(400).json({
+            success: false,
+            message: "Section cannot be empty",
+          });
+        }
+
+        user.section = String(section).trim();
+      }
+    }
 
     await user.save();
-    if (["Student", "Student CR"].includes(user.role)) {
-  // Remove student from previous community memberships
-  await Community.updateMany(
-    { members: user._id },
-    { $pull: { members: user._id } }
-  );
 
-  // Add student to communities matching the updated Year and Section
-  await Community.updateMany(
-    {
-      year: user.year,
-      section: {
-        $regex: `^${String(user.section).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
-        $options: "i",
-      },
-    },
-    {
-      $addToSet: { members: user._id },
+    if (STUDENT_ROLES.includes(user.role)) {
+      await updateStudentCommunities(user);
     }
-  );
 
-  cacheDeletePrefix("communities:");
-}
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-user: {
-  id: user._id,
-  name: user.name,
-  email: user.email,
-  role: user.role,
-  year: user.year,
-  section: user.section,
-  rollNumber: user.rollNumber,
-  campusId: String(req.campus._id),
-  campusName: req.campus.name,
-  campusSlug: req.campus.slug,
-},    });
+      user: userResponse(user, req.campus),
+    });
   } catch (error) {
     console.error("Update profile error:", error.message);
-    return res.status(500).json({ success: false, message: "Unable to update profile" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to update profile",
+    });
   }
 };
 
-// Change own password
+// CHANGE OWN PASSWORD
 const changePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    if (!currentPassword || !newPassword)
-      return res.status(400).json({ success: false, message: "Current password and new password are required" });
-    if (typeof newPassword !== "string" || newPassword.length < 8)
-      return res.status(400).json({ success: false, message: "New password must be at least 8 characters" });
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: "Current password and new password are required",
+      });
+    }
+
+    if (typeof newPassword !== "string" || newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: "New password must be at least 8 characters",
+      });
+    }
 
     const user = await User.findById(req.user._id).select("+password");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
     const match = await bcrypt.compare(currentPassword, user.password);
-    if (!match) return res.status(401).json({ success: false, message: "Current password is incorrect" });
+
+    if (!match) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect",
+      });
+    }
 
     user.password = await bcrypt.hash(newPassword, 12);
     user.tokenVersion += 1;
+
     await user.save();
 
-    const token = generateToken(user);
-    return res.status(200).json({ success: true, message: "Password changed successfully. Please use your new password on next login.", token });
+    return res.status(200).json({
+      success: true,
+      message: "Password changed successfully",
+      token: generateToken(user),
+    });
   } catch (error) {
     console.error("Change password error:", error.message);
-    return res.status(500).json({ success: false, message: "Unable to change password" });
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to change password",
+    });
   }
 };
 

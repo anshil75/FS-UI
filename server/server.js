@@ -39,10 +39,21 @@ app.use(cors({origin:async(origin,cb)=>{
 },credentials:false}));
 app.use(express.json({limit:"1mb"}));
 app.use(express.urlencoded({extended:true}));
-app.get("/api/cache-metrics",cacheMetrics);
-app.get("/api/health",(req,res)=>res.json({success:true,message:"CampusCare API is running"}));
-app.get("/api/db-health",(req,res)=>{const mongoose=require("mongoose");res.json({success:true,connected:mongoose.connection.readyState===1,database:mongoose.connection.name});});
+// PUBLIC HEALTH CHECK
+app.get("/api/health", (req, res) => {
+  res.json({
+    success: true,
+    message: "CampusCare API is running",
+  });
+});
+
+// DEVELOPMENT-ONLY CACHE METRICS
+if (process.env.NODE_ENV !== "production") {
+  app.get("/api/cache-metrics", cacheMetrics);
+}
 app.use("/api/platform",platformRoutes);
+app.use("/api/contact",contactRoutes);
+
 app.use("/api",resolveTenant);
 app.use("/api/auth",authRoutes);
 app.use("/api/users",userRoutes);
@@ -50,7 +61,6 @@ app.use("/api/lost-found",lostFoundRoutes);
 app.use("/api/reports",reportRoutes);
 app.use("/api/communities",communityRoutes);
 app.use("/api/exams",examRoutes);
-app.use("/api/contact",contactRoutes);
 app.use("/api/dashboard",dashboardRoutes);
 app.use((err,req,res,next)=>{console.error(err.message);res.status(err.status||500).json({success:false,message:err.message||"Internal server error"});});
 io.use(async (socket,next)=>{try{

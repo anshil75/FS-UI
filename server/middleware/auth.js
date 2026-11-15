@@ -2,40 +2,77 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 
-// Verify JWT and authenticate user
+// VERIFY JWT AND AUTHENTICATE USER
 const protect = async (req, res, next) => {
+  let decoded;
+
+  // 1. Extract token
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication required. Please login.",
+    });
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  if (!token) {
+    return res.status(401).json({
+      success: false,
+      message: "Authentication token is missing.",
+    });
+  }
+
+  // 2. Verify token
   try {
-    let token;
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
+  } catch (error) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired authentication token.",
+    });
+  }
 
-    const authHeader = req.headers.authorization;
-
-    if (authHeader && authHeader.startsWith("Bearer ")) {
-      token = authHeader.split(" ")[1];
-    }
-
-    if (!token) {
-      return res.status(401).json({
+  // 3. Fetch user within the resolved campus tenant
+  try {
+    if (!req.campus) {
+      return res.status(400).json({
         success: false,
-        message: "Authentication required. Please login.",
+        message: "Campus context is missing.",
       });
     }
-
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     const user = await User.findById(decoded.id);
 
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "User account not found.",
+        message: "User account not found in this campus.",
       });
     }
-if (decoded.tokenVersion !== user.tokenVersion) {
-  return res.status(401).json({
-    success: false,
-    message: "Session expired. Please login again.",
-  });
-}
+
+    // 4. Explicit campus isolation check
+    if (
+      !user.tenantId ||
+      String(user.tenantId) !== String(req.campus._id)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this campus.",
+      });
+    }
+
+    // 5. Verify token version
+    if (decoded.tokenVersion !== user.tokenVersion) {
+      return res.status(401).json({
+        success: false,
+        message: "Session expired. Please login again.",
+      });
+    }
+
+    // 6. Check account status
     if (!user.isActive) {
       return res.status(403).json({
         success: false,
@@ -44,16 +81,19 @@ if (decoded.tokenVersion !== user.tokenVersion) {
     }
 
     req.user = user;
-    next();
+    return next();
+
   } catch (error) {
-    return res.status(401).json({
+    console.error("Authentication error:", error.message);
+
+    return res.status(500).json({
       success: false,
-      message: "Invalid or expired authentication token.",
+      message: "Authentication service temporarily unavailable.",
     });
   }
 };
 
-// Restrict access by user role
+// RESTRICT ACCESS BY USER ROLE
 const authorize = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -70,8 +110,11 @@ const authorize = (...allowedRoles) => {
       });
     }
 
-    next();
+    return next();
   };
 };
 
-module.exports = { protect, authorize };
+module.exports = {
+  protect,
+  authorize,
+};

@@ -7,6 +7,5 @@ const schema = new mongoose.Schema({
  time:{type:String,required:true,trim:true},
  teacher:{type:mongoose.Schema.Types.ObjectId,ref:"User",required:true}
 },{timestamps:true});
-schema.index({exam:1,teacher:1});
-schema.plugin(require("../tenancy/tenantScopePlugin"));
+schema.index({ tenantId: 1, exam: 1, teacher: 1 });schema.plugin(require("../tenancy/tenantScopePlugin"));
 module.exports=mongoose.model("ExamDuty",schema);

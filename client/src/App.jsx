@@ -328,8 +328,8 @@ function Dashboard(){
     const endpoint=isAdmin(user)?"/api/dashboard/admin":isTeacher(user)?"/api/dashboard/teacher":"/api/dashboard/student";
     api(endpoint).then(d=>setStats(d.stats)).catch(e=>setErr(e.message));
   },[user]);
-return <Page title={`Hello, ${identityOf(user)}`}>
-      <p className="mut">Signed in as <b>{user.role}</b>{stats&&user.campusName&&<> · {user.campusName}</>}</p>
+return <Page title={`Hello, ${user?.name || "User"}`}>
+        <p className="mut">Signed in as <b>{user.role}</b>{stats&&user.campusName&&<> · {user.campusName}</>}</p>
     <Notice text={err}/>
     {isAdmin(user)&&stats&&<AdminDashboard stats={stats}/>}
     {isTeacher(user)&&stats&&<TeacherDashboard stats={stats}/>}

@@ -1,6 +1,8 @@
 
 const mongoose = require("mongoose");
 
+const STUDENT_ROLES = ["Student", "Student CR"];
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -13,11 +15,13 @@ const userSchema = new mongoose.Schema(
 
     email: {
       type: String,
-      required: [true, "Email is required"],
-      unique: false,
+      required: [true, "Campus email is required"],
       lowercase: true,
       trim: true,
-      match: [/^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/, 'Enter a valid email address'],
+      match: [
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Enter a valid campus email",
+      ],
     },
 
     password: {
@@ -34,7 +38,44 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    year: { type: Number, min: 1, max: 4, default: "" },
+    course: {
+      type: String,
+      required: [true, "Course is required"],
+      trim: true,
+      maxlength: 120,
+    },
+
+    personalEmail: {
+      type: String,
+      lowercase: true,
+      trim: true,
+      default: "",
+      maxlength: 120,
+      match: [
+        /^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+        "Enter a valid personal email address",
+      ],
+    },
+
+    phoneNumber: {
+      type: String,
+      trim: true,
+      default: "",
+      maxlength: 20,
+      match: [
+        /^$|^[+\d\s()-]{7,20}$/,
+        "Enter a valid phone number",
+      ],
+    },
+
+    year: {
+      type: Number,
+      min: 1,
+      max: 4,
+      required: function () {
+        return STUDENT_ROLES.includes(this.role);
+      },
+    },
 
     className: {
       type: String,
@@ -46,43 +87,52 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+      required: function () {
+        return STUDENT_ROLES.includes(this.role);
+      },
     },
 
     rollNumber: {
-  type: String,
-  trim: true,
-  uppercase: true,
-  default: "",
-},
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: "",
+      required: function () {
+        return STUDENT_ROLES.includes(this.role);
+      },
+    },
 
     isActive: {
       type: Boolean,
       default: true,
     },
+
     tokenVersion: {
-  type: Number,
-  default: 0,
-},
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,
   }
 );
-// Add tenantId automatically from the original Campus._id
+
+// Automatically scopes campus data using the original Campus._id.
 userSchema.plugin(require("../tenancy/tenantScopePlugin"));
 
-// One email per campus
+// Campus login email must be unique within each campus.
 userSchema.index(
   { tenantId: 1, email: 1 },
   { unique: true }
 );
 
-// One roll number per campus for students
+// Student roll numbers must be unique within each campus.
 userSchema.index(
   { tenantId: 1, rollNumber: 1 },
   {
     unique: true,
     partialFilterExpression: {
+      role: { $in: STUDENT_ROLES },
       rollNumber: { $type: "string", $gt: "" },
     },
   }
