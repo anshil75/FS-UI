@@ -2,7 +2,8 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-
+const Community = require("../models/Community");
+const { cacheDeletePrefix } = require("../middleware/cache");
 const generateToken = (user) => {
   return jwt.sign(
     {
@@ -17,8 +18,7 @@ const generateToken = (user) => {
 // Register Student
 const register = async (req, res) => {
   try {
-    const { name, email, password, year, className, section, rollNumber } = req.body;
-
+const { name, email, password, year, section, rollNumber } = req.body;
     // Required fields
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -57,10 +57,29 @@ const register = async (req, res) => {
       password: hashedPassword,
       role: "Student",
       year: Number(year || 1),
-      className,
-      section,
+      
+  section: String(section || "").trim(),
       rollNumber,
     });
+
+    // Automatically add the new student to matching communities.
+// Tenant plugin ensures only this campus's communities are updated.
+await Community.updateMany(
+  {
+    year: user.year,
+    section: {
+      $regex: `^${String(user.section).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+      $options: "i",
+    },
+  },
+  {
+    $addToSet: { members: user._id },
+  }
+);
+
+
+// Clear community cache
+cacheDeletePrefix("communities:");
 
 const token = generateToken(user);
     return res.status(201).json({
@@ -73,7 +92,6 @@ const token = generateToken(user);
         email: user.email,
         role: user.role,
         year: user.year,
-        className: user.className,
         section: user.section,
         rollNumber: user.rollNumber,
         campusId: req.campus?._id || null,
@@ -148,7 +166,6 @@ const token = generateToken(user);
         email: user.email,
         role: user.role,
         year: user.year,
-        className: user.className,
         section: user.section,
         rollNumber: user.rollNumber,
         campusId: req.campus?._id || null,
@@ -175,7 +192,6 @@ const getMe = async (req, res) => {
       email: req.user.email,
       role: req.user.role,
       year: req.user.year,
-      className: req.user.className,
       section: req.user.section,
       rollNumber: req.user.rollNumber,
       campusId: req.campus?._id || null,
@@ -188,7 +204,7 @@ const getMe = async (req, res) => {
 // Update own profile (name, year, className, section — NOT role)
 const updateProfile = async (req, res) => {
   try {
-    const { name, year, className, section } = req.body;
+    const { name, year,  section } = req.body;
     const user = req.user;
 
     if (name !== undefined) {
@@ -197,14 +213,36 @@ const updateProfile = async (req, res) => {
       user.name = name.trim();
     }
     if (year !== undefined) user.year = Number(year);
-    if (className !== undefined) user.className = String(className).trim();
     if (section !== undefined) user.section = String(section).trim();
 
     await user.save();
+    if (["Student", "Student CR"].includes(user.role)) {
+  // Remove student from previous community memberships
+  await Community.updateMany(
+    { members: user._id },
+    { $pull: { members: user._id } }
+  );
+
+  // Add student to communities matching the updated Year and Section
+  await Community.updateMany(
+    {
+      year: user.year,
+      section: {
+        $regex: `^${String(user.section).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`,
+        $options: "i",
+      },
+    },
+    {
+      $addToSet: { members: user._id },
+    }
+  );
+
+  cacheDeletePrefix("communities:");
+}
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user: { id: user._id, name: user.name, email: user.email, role: user.role, year: user.year, className: user.className, section: user.section, rollNumber: user.rollNumber },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role, year: user.year,  section: user.section, rollNumber: user.rollNumber },
     });
   } catch (error) {
     console.error("Update profile error:", error.message);
