@@ -694,7 +694,15 @@ async function sendClaim(id) {
         <p className="mut">Upload up to five clear item photos (maximum 5 MB each).</p>
       </form>
     </div>
-    {isStaff(user)&&<div className="card" style={{marginTop:18}}><h3>Claim verification</h3>{claims.filter(c=>c.status==="Pending").map(c=><div className="it" key={c._id}><b>{c.item?.title||"Item claim"}</b><p>{c.claimedBy?.name}: {c.message}</p><p className="mut">{c.proofDescription}</p><button className="btn s" onClick={()=>review(c._id,"Approved")}>Approve</button> <button className="btn s g" onClick={()=>review(c._id,"Rejected")}>Reject</button></div>)}{!claims.filter(c=>c.status==="Pending").length&&<p className="mut">No pending claims.</p>}</div>}
+    {isStaff(user)&&<div className="card" style={{marginTop:18}}><h3>Claim verification</h3>{claims.filter(c=>c.status==="Pending").map(c=><div className="it" key={c._id}><b>{c.item?.title||"Item claim"}</b><p>{c.claimedBy?.name}: {c.message}</p><p className="mut">{c.proofDescription}</p><div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+  {(c.proofImages || []).map((image, index) => (
+    <SecureImage
+      key={`${c._id}-${index}`}
+      src={image}
+      alt="Ownership proof"
+    />
+  ))}
+</div><button className="btn s" onClick={()=>review(c._id,"Approved")}>Approve</button> <button className="btn s g" onClick={()=>review(c._id,"Rejected")}>Reject</button></div>)}{!claims.filter(c=>c.status==="Pending").length&&<p className="mut">No pending claims.</p>}</div>}
   </Page>
 }
 

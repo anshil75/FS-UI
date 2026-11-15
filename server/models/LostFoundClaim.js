@@ -27,6 +27,7 @@ const lostFoundClaimSchema = new mongoose.Schema(
       required: [true, "Ownership proof is required"],
       trim: true,
       maxlength: 1000,
+       default: "",
     },
 
     status: {
@@ -52,6 +53,30 @@ const lostFoundClaimSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    claimType: {
+  type: String,
+  enum: ["Ownership", "FoundResponse"],
+  default: "Ownership",
+},
+
+foundLocation: {
+  type: String,
+  trim: true,
+  maxlength: 300,
+  default: "",
+},
+
+foundDate: {
+  type: Date,
+  default: null,
+},
+
+proofImages: [
+  {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "CampusCareImage",
+  },
+],
   },
   { timestamps: true }
 );
