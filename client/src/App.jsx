@@ -15,6 +15,10 @@ const roleOf = u => u?.role || "Student";
 const isAdmin = u => roleOf(u) === "Admin";
 const isTeacher = u => roleOf(u) === "Teacher";
 const isStaff = u => ["Teacher","Admin"].includes(roleOf(u));
+const identityOf = (u) =>
+  String(u?.role || "").startsWith("Student")
+    ? (u?.rollNumber || "Roll number not set")
+    : (u?.email || "Email not available");
 
 /* ─── Shell / Navigation ─────────────────────── */
 function Shell({children}) {
@@ -324,8 +328,8 @@ function Dashboard(){
     const endpoint=isAdmin(user)?"/api/dashboard/admin":isTeacher(user)?"/api/dashboard/teacher":"/api/dashboard/student";
     api(endpoint).then(d=>setStats(d.stats)).catch(e=>setErr(e.message));
   },[user]);
-  return <Page title={`Hello, ${user.name}`}>
-    <p className="mut">Signed in as <b>{user.role}</b>{stats&&user.campusName&&<> · {user.campusName}</>}</p>
+return <Page title={`Hello, ${identityOf(user)}`}>
+      <p className="mut">Signed in as <b>{user.role}</b>{stats&&user.campusName&&<> · {user.campusName}</>}</p>
     <Notice text={err}/>
     {isAdmin(user)&&stats&&<AdminDashboard stats={stats}/>}
     {isTeacher(user)&&stats&&<TeacherDashboard stats={stats}/>}
@@ -678,7 +682,7 @@ async function sendClaim(id, type = "Ownership") {
           <p className="mut">{i.category} · {i.location} · {i.itemType}</p>
           <p>{i.description}</p>
           <div className="row">{(i.images||[]).map((im,n)=><SecureImage key={n} src={im.url||im} alt={i.title}/>)}</div>
-          <p className="mut">Posted by {i.postedBy?.name||"Unknown"}</p>
+          <p className="mut">Posted by {identityOf(i.postedBy)}</p>
           <div className="row" style={{flexWrap:"wrap",gap:8}}>
             {i.status!=="Resolved"&&(isOwner(i)||isAdmin(user))&&<button className="btn s" onClick={()=>markResolved(i._id)}>Mark resolved</button>}
             {(isOwner(i)||isAdmin(user))&&<button className="btn s g" onClick={()=>deleteItem(i._id)}>Delete</button>}
@@ -799,7 +803,7 @@ async function sendClaim(id, type = "Ownership") {
         <p className="mut">Upload up to five clear item photos (maximum 5 MB each).</p>
       </form>
     </div>
-    {isStaff(user)&&<div className="card" style={{marginTop:18}}><h3>Claim verification</h3>{claims.filter(c=>c.status==="Pending").map(c=><div className="it" key={c._id}><b>{c.item?.title||"Item claim"}</b><p>{c.claimedBy?.name}: {c.message}</p><p className="mut">{c.proofDescription}</p><div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
+    {isStaff(user)&&<div className="card" style={{marginTop:18}}><h3>Claim verification</h3>{claims.filter(c=>c.status==="Pending").map(c=><div className="it" key={c._id}><b>{c.item?.title||"Item claim"}</b><p>{identityOf(c.claimedBy)}: {c.message}</p><p className="mut">{c.proofDescription}</p><div className="row" style={{ flexWrap: "wrap", gap: 10 }}>
   {(c.proofImages || []).map((image, index) => (
     <SecureImage
       key={`${c._id}-${index}`}
@@ -1547,7 +1551,7 @@ function Community(){
       }
       <div className="two">
         <div className="card"><h3>Community Feed</h3>
-          {(active.posts||[]).filter(p=>(p.content+" "+p.type+" "+(p.author?.name||"")).toLowerCase().includes(search.toLowerCase())).map(p=><div className="it" key={p._id}><span className="tag">{p.type}</span> <b>{p.author?.name}</b><p>{p.content}</p><p className="mut">{new Date(p.createdAt).toLocaleString()}</p></div>)}
+          {(active.posts||[]).filter(p=>(p.content+" "+p.type+" "+identityOf(p.author)).toLowerCase().includes(search.toLowerCase())).map(p=><div className="it" key={p._id}><span className="tag">{p.type}</span> <b>{identityOf(p.author)}</b><p>{p.content}</p><p className="mut">{new Date(p.createdAt).toLocaleString()}</p></div>)}
           {!active.posts?.length&&<p className="mut">No posts yet.</p>}
           {(isMember(active)||isOwner(active)||isAdmin(user))&&<form onSubmit={addPost}>
             <label>Post type</label>
@@ -1731,7 +1735,8 @@ function Examinations(){
     {tab==="Students"&&<><div className="year-grid">{[1,2,3,4].map(y=><button className="year-card" key={y} onClick={()=>setActiveYear(activeYear===y?null:y)}>Year {y}<small>{yearSeats(y).length} assigned seats</small></button>)}</div>
       {[1,2,3,4].filter(y=>activeYear===y).map(y=><section className="card exam-year" key={y}><h3>Year {y} students</h3>
         {data.exams.filter(x=>Number(x.year)===y).map(x=><div className="it" key={x._id}><b>{x.subject}</b><p className="mut">{new Date(x.date).toLocaleDateString()} · {x.time}</p>{x.hasSeatingChart&&<ExamChart examId={x._id}/>}</div>)}
-        {data.seats.filter(s=>Number(s.exam?.year)===y&&(s.student?.name+" "+s.student?.email+" "+s.hall+" "+s.seat+" "+s.exam?.subject).toLowerCase().includes(search.toLowerCase())).map(s=><div className="it" key={s._id}><b>{s.student?.name}</b><p>{s.student?.email} · {s.exam?.subject} · {s.hall} · Seat {s.seat}</p></div>)}
+        {data.seats.filter(s=>Number(s.exam?.year)===y&&(identityOf(s.student)+" "+s.student?.email+" "+s.hall+" "+s.seat+" "+s.exam?.subject).toLowerCase().includes(search.toLowerCase())).map(s=><div className="it" key={s._id}><b>{identityOf(s.student)}</b>
+<p>{s.student?.email} · {s.exam?.subject} · {s.hall} · Seat {s.seat}</p></div>)}
         {!yearSeats(y).length&&<p className="mut">No students assigned for this year yet.</p>}
       </section>)}
       {isAdmin(user)&&<form className="card" onSubmit={saveSeat}><h3>Assign / update student seating</h3>
@@ -1767,7 +1772,7 @@ function Examinations(){
       <label>Describe the mistake</label><textarea required value={req.message} onChange={e=>setReq({...req,message:e.target.value})}/>
       <button className="btn">Submit request</button>
     </form>}
-    {isAdmin(user)&&<section className="card"><h3>Exam help requests</h3>{data.requests.filter(r=>(r.student?.name+" "+r.exam?.subject+" "+r.message).toLowerCase().includes(search.toLowerCase())).map(r=><div className="it" key={r._id}><b>{r.student?.name} · {r.exam?.subject}</b><p>{r.message}</p><Badge text={r.status}/></div>)}</section>}
+    {isAdmin(user)&&<section className="card"><h3>Exam help requests</h3>{data.requests.filter(r=>(identityOf(r.student)+" "+r.exam?.subject+" "+r.message).toLowerCase().includes(search.toLowerCase())).map(r=><div className="it" key={r._id}><b>{identityOf(r.student)} · {r.exam?.subject}</b><p>{r.message}</p><Badge text={r.status}/></div>)}</section>}
   </Page>
 }
 
@@ -1853,7 +1858,7 @@ function Users(){
       </form>}
       <div>
         <div className="card"><h3>Reset user password</h3><form onSubmit={saveReset}>
-          <label>Select user</label><select required value={reset.id} onChange={e=>setReset({...reset,id:e.target.value})}><option value="">Choose account</option>{users.filter(u=>u.role!=="Admin").map(u=><option key={u._id} value={u._id}>{u.name} · {u.email}</option>)}</select>
+          <label>Select user</label><select required value={reset.id} onChange={e=>setReset({...reset,id:e.target.value})}><option value="">Choose account</option>{users.filter(u=>u.role!=="Admin").map(u=><option key={u._id} value={u._id}>{identityOf(u)} · {u.email}</option>)}</select>
           <label>New password</label><input required minLength={8} type="password" value={reset.password} onChange={e=>setReset({...reset,password:e.target.value})}/>
           <button className="btn">Reset password</button>
         </form></div>
@@ -1871,9 +1876,9 @@ function Users(){
         <select value={roleFilter} onChange={e=>setRoleFilter(e.target.value)}><option value="">All roles</option>{["Student","Student CR","Teacher","Admin"].map(r=><option key={r}>{r}</option>)}</select>
         <button className="btn s" onClick={()=>{setPage(1);load(1)}}>Search</button>
       </div>
-      <div className="ov"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Year</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+      <div className="ov"><table><thead><tr><th>Identity</th><th>Email</th><th>Role</th><th>Year</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         {users.map(u=><tr key={u._id}>
-          <td>{u.name}</td><td>{u.email}</td>
+          <td>{identityOf(u)}</td><td>{u.email}</td>
           <td><select disabled={u.role==="Admin"} value={u.role} onChange={e=>patch(u._id,"role",{role:e.target.value})}>{["Student","Student CR","Teacher","Admin"].map(r=><option key={r}>{r}</option>)}</select></td>
           <td>{u.year||"—"}</td><td>{u.className||"—"}{u.section?` / ${u.section}`:""}</td>
           <td>{u.isActive?"Active":"Disabled"}</td>

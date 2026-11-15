@@ -20,12 +20,12 @@ const register = async (req, res) => {
   try {
 const { name, email, password, year, section, rollNumber } = req.body;
     // Required fields
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, email and password are required",
-      });
-    }
+   if (!name || !email || !password || !rollNumber) {
+  return res.status(400).json({
+    success: false,
+    message: "Name, email, password and roll number are required",
+  });
+}
 
     if (password.length < 8) {
       return res.status(400).json({
@@ -33,11 +33,19 @@ const { name, email, password, year, section, rollNumber } = req.body;
         message: "Password must contain at least 8 characters",
       });
     }
+const normalizedEmail = String(email).trim().toLowerCase();
+const normalizedRollNumber = String(rollNumber).trim().toUpperCase();
 
+if (!normalizedRollNumber) {
+  return res.status(400).json({
+    success: false,
+    message: "Roll number is required",
+  });
+}
     // Check existing account
     const existingUser = await User.findOne({
-      email: email.toLowerCase().trim(),
-    });
+  email: normalizedEmail,
+});
 
     if (existingUser) {
       return res.status(409).json({
@@ -45,22 +53,31 @@ const { name, email, password, year, section, rollNumber } = req.body;
         message: "An account with this email already exists",
       });
     }
+const existingRollNumber = await User.findOne({
+  rollNumber: normalizedRollNumber,
+  role: { $in: ["Student", "Student CR"] },
+});
 
+if (existingRollNumber) {
+  return res.status(409).json({
+    success: false,
+    message: "This roll number is already registered in your campus",
+  });
+}
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Public registration always creates a Student.
     // Admin/Teacher/CR roles will be assigned through authorized workflows.
     const user = await User.create({
-      name,
-      email: email.toLowerCase().trim(),
-      password: hashedPassword,
-      role: "Student",
-      year: Number(year || 1),
-      
+  name: name.trim(),
+  email: normalizedEmail,
+  password: hashedPassword,
+  role: "Student",
+  year: Number(year || 1),
   section: String(section || "").trim(),
-      rollNumber,
-    });
+  rollNumber: normalizedRollNumber,
+});
 
     // Automatically add the new student to matching communities.
 // Tenant plugin ensures only this campus's communities are updated.
@@ -87,16 +104,18 @@ const token = generateToken(user);
       message: "Registration successful",
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        year: user.year,
-        section: user.section,
-        rollNumber: user.rollNumber,
-        campusId: req.campus?._id || null,
-        campusName: req.campus?.name || null,
-        campusSlug: req.campus?.slug || null,
+        user: {
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  year: user.year,
+  section: user.section,
+  rollNumber: user.rollNumber,
+  campusId: String(req.campus._id),
+  campusName: req.campus.name,
+  campusSlug: req.campus.slug,
+},
       },
     });
   } catch (error) {
@@ -105,7 +124,7 @@ const token = generateToken(user);
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "Email is already registered",
+        message: "Email or roll number is already registered in this campus",      
       });
     }
 
@@ -161,16 +180,18 @@ const token = generateToken(user);
       message: "Login successful",
       token,
       user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-        year: user.year,
-        section: user.section,
-        rollNumber: user.rollNumber,
-        campusId: req.campus?._id || null,
-        campusName: req.campus?.name || null,
-        campusSlug: req.campus?.slug || null,
+        user: {
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  year: user.year,
+  section: user.section,
+  rollNumber: user.rollNumber,
+  campusId: String(req.campus._id),
+  campusName: req.campus.name,
+  campusSlug: req.campus.slug,
+},
       },
     });
   } catch (error) {
@@ -184,19 +205,21 @@ const token = generateToken(user);
 };
 // Get currently logged-in user
 const getMe = async (req, res) => {
+  const user = req.user;
+
   return res.status(200).json({
     success: true,
     user: {
-      id: req.user._id,
-      name: req.user.name,
-      email: req.user.email,
-      role: req.user.role,
-      year: req.user.year,
-      section: req.user.section,
-      rollNumber: req.user.rollNumber,
-      campusId: req.campus?._id || null,
-      campusName: req.campus?.name || null,
-      campusSlug: req.campus?.slug || null,
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      year: user.year,
+      section: user.section,
+      rollNumber: user.rollNumber,
+      campusId: String(req.campus._id),
+      campusName: req.campus.name,
+      campusSlug: req.campus.slug,
     },
   });
 };
@@ -242,8 +265,18 @@ const updateProfile = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Profile updated successfully",
-      user: { id: user._id, name: user.name, email: user.email, role: user.role, year: user.year,  section: user.section, rollNumber: user.rollNumber },
-    });
+user: {
+  id: user._id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  year: user.year,
+  section: user.section,
+  rollNumber: user.rollNumber,
+  campusId: String(req.campus._id),
+  campusName: req.campus.name,
+  campusSlug: req.campus.slug,
+},    });
   } catch (error) {
     console.error("Update profile error:", error.message);
     return res.status(500).json({ success: false, message: "Unable to update profile" });

@@ -49,10 +49,11 @@ const userSchema = new mongoose.Schema(
     },
 
     rollNumber: {
-      type: String,
-      trim: true,
-      default: "",
-    },
+  type: String,
+  trim: true,
+  uppercase: true,
+  default: "",
+},
 
     isActive: {
       type: Boolean,
@@ -67,9 +68,26 @@ const userSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
-
-userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
+// Add tenantId automatically from the original Campus._id
 userSchema.plugin(require("../tenancy/tenantScopePlugin"));
+
+// One email per campus
+userSchema.index(
+  { tenantId: 1, email: 1 },
+  { unique: true }
+);
+
+// One roll number per campus for students
+userSchema.index(
+  { tenantId: 1, rollNumber: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      rollNumber: { $type: "string", $gt: "" },
+    },
+  }
+);
+
 const User = mongoose.model("User", userSchema);
 
 module.exports = User;
