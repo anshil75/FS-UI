@@ -71,7 +71,11 @@ function Protected({children,roles}){
 
 /* ─── Public Pages ───────────────────────────── */
 function Home(){const {user}=useAuth();if(user)return <Navigate to="/dashboard" replace/>;return <>
-  <section className="hv"><div className="wrap hvi"><div><h1>One campus.<br/>Everything in order.</h1><p>Lost belongings, campus issues, class groups and exams, managed in one calm place for students, teachers and the admin office.</p><div className="row" style={{gap:10,flexWrap:"wrap"}}><Link className="btn w" to="/login">Log in</Link><Link className="btn w" to="/register">Register Student</Link><Link className="btn wg" to="/register-campus">Register Campus</Link></div></div>
+  <section className="hv"><div className="wrap hvi"><div><h1>One campus.<br/>Everything in order.</h1><p>Lost belongings, campus issues, class groups and exams, managed in one calm place for students, teachers and the admin office.</p>
+  <div className="row" style={{gap:10,flexWrap:"wrap"}}>
+    <Link className="btn w" to="/login">Log in</Link>
+    <Link className="btn wg" to="/register-campus">Register Campus</Link>
+    </div></div>
   <svg viewBox="0 0 320 200" role="img" aria-label="Campus building" fill="none" stroke="#fff" strokeWidth="1"><polygon points="30,76 160,20 290,76"/><line x1="40" y1="76" x2="280" y2="76"/><line x1="40" y1="84" x2="280" y2="84"/>{[0,1,2,3,4,5].map(i=><g key={i}><line x1={58+i*41} y1="84" x2={58+i*41} y2="168"/><line x1={70+i*41} y1="84" x2={70+i*41} y2="168"/></g>)}<line x1="30" y1="168" x2="290" y2="168"/><line x1="18" y1="176" x2="302" y2="176"/><line x1="6" y1="184" x2="314" y2="184"/></svg></div></section>
   <section className="wrap lst">{modules.map(m=><Link className="ln" to="/login" key={m.path}><h3>{m.title}</h3><p>{m.description}</p><span>Explore</span></Link>)}</section>
   <section className="band"><div className="wrap cols"><div><h3>Students</h3><p>Post and track your own items and reports, join class groups and check your exam seat.</p></div><div><h3>Teachers</h3><p>Verify lost and found claims, manage class learning spaces and view assigned exam duties.</p></div><div><h3>Admin office</h3><p>Manage users, reports, exams, class communities and account access.</p></div></div></section>
@@ -212,7 +216,6 @@ function Login({ defaultTab = "login" }){
         <h2>Welcome to CampusCare</h2>
         <div className="tabs" style={{ marginBottom: 18 }}>
           <button type="button" className={tab === "login" ? "on" : ""} onClick={() => { setTab("login"); setMsg(""); }}>Log in</button>
-          <button type="button" className={tab === "user" ? "on" : ""} onClick={() => { setTab("user"); setMsg(""); }}>Register Student</button>
           <button type="button" className={tab === "campus" ? "on" : ""} onClick={() => { setTab("campus"); setMsg(""); }}>Register Campus</button>
         </div>
 
@@ -240,8 +243,6 @@ function Login({ defaultTab = "login" }){
             <p><button className="btn" disabled={busy}>{busy ? "Please wait..." : "Log in"}</button></p>
             <Notice text={msg} />
             <div className="mut" style={{ fontSize: 13, marginTop: 16, lineHeight: 1.8 }}>
-              New student? <button type="button" style={{ background: "none", border: 0, color: "inherit", textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setTab("user"); setMsg(""); }}>Register student account</button>
-              <br />
               New university? <button type="button" style={{ background: "none", border: 0, color: "inherit", textDecoration: "underline", cursor: "pointer", padding: 0, font: "inherit" }} onClick={() => { setTab("campus"); setMsg(""); }}>Register new campus</button>
             </div>
           </form>
@@ -596,19 +597,29 @@ function LostFound(){
   }catch(e){setError(e.message)}finally{setBusy(false)}}
 
   async function markResolved(id){try{await api(`/api/lost-found/${id}/status`,{method:"PATCH",body:json({status:"Resolved"})});await load()}catch(e){setError(e.message)}}
-async function sendClaim(id) {
+
+
+
+async function sendClaim(id, type = "Ownership") {
   try {
     setBusy(true);
     setError("");
 
     const fd = new FormData();
+    const current = claim[id] || {};
 
-    fd.append("message", claim[id]?.message || "");
-    fd.append("proofDescription", claim[id]?.proof || "");
+    fd.append("claimType", type);
+    fd.append("message", current.message || "");
 
-    (claim[id]?.files || []).forEach((file) => {
-      fd.append("proofImages", file);
-    });
+    if (type === "FoundResponse") {
+      fd.append("foundLocation", current.foundLocation || "");
+      fd.append("foundDate", current.foundDate || "");
+    } else {
+      fd.append("proofDescription", current.proof || "");
+      (current.files || []).forEach(file => {
+        fd.append("proofImages", file);
+      });
+    }
 
     await api(`/api/lost-found/${id}/claims`, {
       method: "POST",
@@ -620,16 +631,32 @@ async function sendClaim(id) {
 
     await load();
 
-    setClaim((prev) => ({
+    setClaim(prev => ({
       ...prev,
-      [id]: { message: "", proof: "", files: [] },
+      [id]: {
+        message: "",
+        proof: "",
+        files: [],
+        foundLocation: "",
+        foundDate: "",
+      },
     }));
+
+    setError(
+      type === "FoundResponse"
+        ? "Your found response has been sent to the item owner."
+        : "Your ownership claim has been submitted."
+    );
   } catch (e) {
     setError(e.message);
   } finally {
     setBusy(false);
   }
-}  async function review(id,decision){try{
+}
+
+
+
+  async function review(id,decision){try{
     await api(`/api/lost-found/claims/${id}/review`,{method:"PATCH",body:json({decision,reviewMessage:"Reviewed by campus staff"})});
     const data = await api("/api/lost-found/claims");
     setClaims(data.claims || []);
@@ -656,8 +683,9 @@ async function sendClaim(id) {
             {i.status!=="Resolved"&&(isOwner(i)||isAdmin(user))&&<button className="btn s" onClick={()=>markResolved(i._id)}>Mark resolved</button>}
             {(isOwner(i)||isAdmin(user))&&<button className="btn s g" onClick={()=>deleteItem(i._id)}>Delete</button>}
             {i.itemType==="Found"&&i.status==="Open"&&!isOwner(i)&&<div style={{width:"100%"}}>
-              <textarea placeholder="Claim message" value={claim[i._id]?.message||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],message:e.target.value}})}/>
-              <textarea placeholder="Ownership proof details" value={claim[i._id]?.proof||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],proof:e.target.value}})}/>
+
+              <textarea placeholder="Tell us why this item belongs to you" value={claim[i._id]?.message||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],message:e.target.value}})}/>
+              <textarea required placeholder="Describe identifying details / ownership proof" value={claim[i._id]?.proof||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],proof:e.target.value}})}/>
               <div className="claim-image-upload">
   <label>Upload Ownership Proof (Optional)</label>
   <input
@@ -676,8 +704,74 @@ async function sendClaim(id) {
   />
   <small>You can upload up to 3 images (JPG, PNG, WEBP).</small>
 </div>
-              <button className="btn s" onClick={()=>sendClaim(i._id)}>Submit claim</button>
+              <button type="button" className="btn s" disabled={busy} onClick={()=>sendClaim(i._id)}>{busy?"Submitting...":"Submit ownership claim"}</button>
             </div>}
+
+{i.itemType === "Lost" && i.status === "Open" && !isOwner(i) && (
+  <div style={{ width: "100%", marginTop: 12 }}>
+    <h4>I Found This Item</h4>
+    <p className="mut">
+      Found this belonging? Share where and when you found it.
+      The person who posted this Lost item will receive your response.
+    </p>
+
+    <input
+      placeholder="Where did you find it? (e.g. Library, Block A)"
+      value={claim[i._id]?.foundLocation || ""}
+      onChange={e =>
+        setClaim(prev => ({
+          ...prev,
+          [i._id]: {
+            ...prev[i._id],
+            foundLocation: e.target.value
+          }
+        }))
+      }
+      required
+    />
+
+    <label>When did you find it?</label>
+    <input
+      type="datetime-local"
+      value={claim[i._id]?.foundDate || ""}
+      onChange={e =>
+        setClaim(prev => ({
+          ...prev,
+          [i._id]: {
+            ...prev[i._id],
+            foundDate: e.target.value
+          }
+        }))
+      }
+      required
+    />
+
+    <textarea
+      placeholder="Message: I found this item. You can collect it from..."
+      value={claim[i._id]?.message || ""}
+      onChange={e =>
+        setClaim(prev => ({
+          ...prev,
+          [i._id]: {
+            ...prev[i._id],
+            message: e.target.value
+          }
+        }))
+      }
+      required
+    />
+
+    <button
+      type="button"
+      className="btn s"
+      disabled={busy}
+      onClick={() => sendClaim(i._id, "FoundResponse")}
+    >
+      Send Found Response
+    </button>
+  </div>
+)}
+
           </div>
         </div>)}
         {!items.length&&<p className="mut">No items found.</p>}
@@ -1471,6 +1565,15 @@ function Examinations(){
   const yearSeats=year=>data.seats.filter(s=>Number(s.exam?.year)===year);
 
   return <Page title="Examinations"><Notice text={err}/>
+    {!isAdmin(user) && <section className="card" style={{marginBottom:18}}>
+      <h3>Exam Schedule & Seating Charts</h3>
+      {exams.map(x=><div className="it" key={`public-${x._id}`}>
+        <b>{x.subject}</b>
+        <p className="mut">Year {x.year} · {new Date(x.date).toLocaleDateString()} · {x.time}</p>
+        {x.hasSeatingChart ? <ExamChart examId={x._id}/> : <p className="mut">Seating chart has not been uploaded yet.</p>}
+      </div>)}
+      {!exams.length && <p className="mut">No examinations available yet.</p>}
+    </section>}
     <div className="tabs exam-tabs">{(isAdmin(user)?["Create","Students","Teachers"]:isTeacher(user)?["Teachers"]:["Students"]).map(x=><button key={x} className={tab===x?"on":""} onClick={()=>{setTab(x);setSearch("")}}>{x}</button>)}</div>
     <SearchBox value={search} onChange={setSearch} placeholder="Search exam name, year, hall, student or teacher"/>
 
@@ -1597,11 +1700,36 @@ function Users(){
         <label>Full name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
         <label>Campus email</label><input required type="email" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/>
         <label>Temporary password (minimum 8 characters)</label><input required minLength={8} type="password" value={form.password} onChange={e=>setForm({...form,password:e.target.value})}/>
-        <label>Role</label><select value={form.role} onChange={e=>setForm({...form,role:e.target.value})}>{["Student","Student CR","Teacher"].map(r=><option key={r}>{r}</option>)}</select>
-        <label>Year</label><select value={form.year} onChange={e=>setForm({...form,year:Number(e.target.value)})}>{[1,2,3,4].map(y=><option key={y} value={y}>Year {y}</option>)}</select>
-        <label>Class / Course</label><input value={form.className} onChange={e=>setForm({...form,className:e.target.value})}/>
-        <label>Section</label><input value={form.section} onChange={e=>setForm({...form,section:e.target.value})}/>
-        <label>Roll number</label><input value={form.rollNumber} onChange={e=>setForm({...form,rollNumber:e.target.value})}/>
+<label>Register Account Type</label>
+<select
+  value={form.role}
+  onChange={e => setForm({
+    ...form,
+    role: e.target.value,
+    year: 1,
+    className: "",
+    section: "",
+    rollNumber: ""
+  })}
+>
+  {["Student", "Student CR", "Teacher", "Admin"].map(r => (
+    <option key={r} value={r}>{r}</option>
+  ))}
+</select>
+        {["Student", "Student CR"].includes(form.role) && <>
+          <label>Academic Year</label>
+          <select required value={form.year} onChange={e=>setForm({...form,year:Number(e.target.value)})}>
+            {[1,2,3,4].map(y=><option key={y} value={y}>Year {y}</option>)}
+          </select>
+          <label>Class / Course</label>
+          <input required value={form.className} onChange={e=>setForm({...form,className:e.target.value})} placeholder="e.g. BTech CSE"/>
+          <label>Section</label>
+          <input required value={form.section} onChange={e=>setForm({...form,section:e.target.value})} placeholder="e.g. A"/>
+          <label>Roll number</label>
+          <input required value={form.rollNumber} onChange={e=>setForm({...form,rollNumber:e.target.value})}/>
+        </>}
+        {form.role === "Teacher" && <p className="mut">Teacher account: name, official email and temporary password only. Academic details are not required.</p>}
+        {form.role === "Admin" && <p className="mut">Campus administrator account: name, official email and temporary password only.</p>}
         <button className="btn">Create account</button>
       </form>}
       <div>
@@ -1611,7 +1739,7 @@ function Users(){
           <button className="btn">Reset password</button>
         </form></div>
         <div className="card" style={{marginTop:16}}><h3>Bulk import (CSV)</h3>
-          <p className="mut">CSV format: name,email,password,role,year,className,section,rollNumber<br/>First row is header (skipped). Role: Student / Student CR / Teacher</p>
+          <p className="mut">CSV format: name,email,password,role,year,className,section,rollNumber<br/>First row is header (skipped). Role: Student / Student CR / Teacher / Admin</p>
           <textarea rows={5} placeholder="name,email,password,role,year,className,section,rollNumber&#10;John Doe,john@uni.edu,Pass1234!,Student,1,BTech CSE,A,CS001" value={bulkCsv} onChange={e=>setBulkCsv(e.target.value)}/>
           <p><button className="btn" onClick={bulkImport}>Import users</button></p>
           {bulkResult&&<p className="mut">{bulkResult}</p>}
@@ -1627,7 +1755,7 @@ function Users(){
       <div className="ov"><table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Year</th><th>Class</th><th>Status</th><th>Actions</th></tr></thead><tbody>
         {users.map(u=><tr key={u._id}>
           <td>{u.name}</td><td>{u.email}</td>
-          <td><select disabled={u.role==="Admin"} value={u.role} onChange={e=>patch(u._id,"role",{role:e.target.value})}>{["Student","Student CR","Teacher"].map(r=><option key={r}>{r}</option>)}{u.role==="Admin"&&<option>Admin</option>}</select></td>
+          <td><select disabled={u.role==="Admin"} value={u.role} onChange={e=>patch(u._id,"role",{role:e.target.value})}>{["Student","Student CR","Teacher","Admin"].map(r=><option key={r}>{r}</option>)}</select></td>
           <td>{u.year||"—"}</td><td>{u.className||"—"}{u.section?` / ${u.section}`:""}</td>
           <td>{u.isActive?"Active":"Disabled"}</td>
           <td><div className="row" style={{gap:4}}>
@@ -1695,7 +1823,7 @@ function AppRoutes(){return <Shell><Routes>
   <Route path="/contact" element={<Contact/>}/>
   <Route path="/help" element={<Help/>}/>
   <Route path="/login" element={<Login defaultTab="login"/>}/>
-  <Route path="/register" element={<Login defaultTab="user"/>}/>
+  <Route path="/register" element={<Navigate to="/login" replace/>}/>
   <Route path="/register-campus" element={<Login defaultTab="campus"/>}/>
   <Route path="/platform" element={<PlatformConsole/>}/>
   <Route path="/dashboard" element={<Protected><Dashboard/></Protected>}/>

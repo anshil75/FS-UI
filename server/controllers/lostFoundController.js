@@ -410,20 +410,13 @@ const submitClaim = async (req, res) => {
   const uploadedImageIds = [];
 
   try {
-    const { message, proofDescription } = req.body;
-
-    if (typeof message !== "string" || !message.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: "Claim message is required",
-      });
-    }
-
-    // Ownership proof description is optional
-    const safeProofDescription =
-      typeof proofDescription === "string"
-        ? proofDescription.trim()
-        : "";
+    const {
+      message,
+      proofDescription,
+      claimType,
+      foundLocation,
+      foundDate,
+    } = req.body;
 
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -441,26 +434,76 @@ const submitClaim = async (req, res) => {
       });
     }
 
-    if (item.itemType !== "Found") {
-      return res.status(400).json({
-        success: false,
-        message: "Claims can only be submitted for Found items",
-      });
-    }
-
     if (String(item.postedBy) === String(req.user._id)) {
       return res.status(403).json({
         success: false,
-        message: "You cannot claim an item you posted",
+        message: "You cannot respond to your own post",
       });
     }
 
     if (item.status !== "Open") {
       return res.status(409).json({
         success: false,
-        message: "This item is not currently accepting claims",
+        message: "This item is no longer accepting responses",
       });
     }
+
+    const isFoundResponse = item.itemType === "Lost";
+
+    if (
+      isFoundResponse &&
+      claimType !== "FoundResponse"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid response type for a Lost item",
+      });
+    }
+
+    if (
+      !isFoundResponse &&
+      claimType !== "Ownership"
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid claim type for a Found item",
+      });
+    }
+
+    if (typeof message !== "string" || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: "Message is required",
+      });
+    }
+
+    if (
+      isFoundResponse &&
+      (typeof foundLocation !== "string" || !foundLocation.trim())
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Found location is required",
+      });
+    }
+
+    let parsedFoundDate = null;
+
+    if (isFoundResponse) {
+      if (!foundDate || Number.isNaN(Date.parse(foundDate))) {
+        return res.status(400).json({
+          success: false,
+          message: "Valid found date and time are required",
+        });
+      }
+
+      parsedFoundDate = new Date(foundDate);
+    }
+
+    const safeProofDescription =
+      typeof proofDescription === "string"
+        ? proofDescription.trim()
+        : "";
 
     const files = req.files || [];
 
@@ -472,6 +515,10 @@ const submitClaim = async (req, res) => {
     }
 
     for (const file of files) {
+      if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
+        throw new Error("Only JPG, PNG and WEBP images are allowed");
+      }
+
       const imageId = await uploadImageToGridFS(
         file,
         req.user._id,
@@ -484,17 +531,26 @@ const submitClaim = async (req, res) => {
     const claim = await LostFoundClaim.create({
       item: item._id,
       claimedBy: req.user._id,
+      claimType: isFoundResponse ? "FoundResponse" : "Ownership",
       message: message.trim(),
       proofDescription: safeProofDescription,
+      foundLocation: isFoundResponse ? foundLocation.trim() : "",
+      foundDate: parsedFoundDate,
       proofImages: uploadedImageIds,
     });
 
-    item.status = "Claim Pending";
-    await item.save();
+    // Only ownership claims put a Found item into Claim Pending.
+    // A finder response on a Lost item leaves the post open.
+    if (!isFoundResponse) {
+      item.status = "Claim Pending";
+      await item.save();
+    }
 
     return res.status(201).json({
       success: true,
-      message: "Claim submitted successfully. Awaiting verification.",
+      message: isFoundResponse
+        ? "Found response sent to the person who posted the Lost item."
+        : "Ownership claim submitted successfully.",
       claim: formatClaim(claim),
     });
   } catch (error) {
@@ -502,17 +558,14 @@ const submitClaim = async (req, res) => {
       try {
         await getGridFSBucket().delete(imageId);
       } catch (cleanupError) {
-        console.error(
-          "Claim image cleanup error:",
-          cleanupError.message
-        );
+        console.error("Claim image cleanup error:", cleanupError.message);
       }
     }
 
     if (error.code === 11000) {
       return res.status(409).json({
         success: false,
-        message: "You have already submitted a claim for this item",
+        message: "You have already responded to this item",
       });
     }
 
@@ -520,19 +573,30 @@ const submitClaim = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Unable to submit claim",
+      message: error.message || "Unable to submit response",
     });
   }
 };
 
+
 // 6. Get claims
+
 const getClaims = async (req, res) => {
   try {
     const filter = {};
 
-    // Students and Student CR can see only their own claims
     if (!["Admin", "Teacher"].includes(req.user.role)) {
-      filter.claimedBy = req.user._id;
+      const myLostItems = await LostFound.find({
+        postedBy: req.user._id,
+        itemType: "Lost",
+      }).select("_id");
+
+      const myLostItemIds = myLostItems.map(item => item._id);
+
+      filter.$or = [
+        { claimedBy: req.user._id },
+        { item: { $in: myLostItemIds } },
+      ];
     }
 
     if (req.query.status) {
@@ -546,25 +610,25 @@ const getClaims = async (req, res) => {
       filter.status = req.query.status;
     }
 
-   const claims = await LostFoundClaim.find(filter)
-  .populate({
-    path: "item",
-    populate: [
-      { path: "postedBy", select: "name role" },
-      { path: "verifiedBy", select: "name role" },
-    ],
-  })
-  .populate("claimedBy", "name email role")
-  .populate("reviewedBy", "name role")
-  .sort({ createdAt: -1 });
+    const claims = await LostFoundClaim.find(filter)
+      .populate({
+        path: "item",
+        populate: [
+          { path: "postedBy", select: "name role" },
+          { path: "verifiedBy", select: "name role" },
+        ],
+      })
+      .populate("claimedBy", "name email role")
+      .populate("reviewedBy", "name role")
+      .sort({ createdAt: -1 });
 
-  return res.status(200).json({
-  success: true,
-  total: claims.length,
-  claims: claims.map(formatClaim),
-});
+    return res.status(200).json({
+      success: true,
+      total: claims.length,
+      claims: claims.map(formatClaim),
+    });
   } catch (error) {
-    console.error("Get claims error:", error.message);
+    console.error("Get claims error:", error);
 
     return res.status(500).json({
       success: false,
@@ -601,7 +665,13 @@ const reviewClaim = async (req, res) => {
         message: "Claim not found",
       });
     }
-
+if (claim.claimType === "FoundResponse") {
+  return res.status(400).json({
+    success: false,
+    message:
+      "Finder responses are handled by the original item owner, not claim verification.",
+  });
+}
     if (claim.status !== "Pending") {
       return res.status(409).json({
         success: false,

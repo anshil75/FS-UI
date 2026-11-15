@@ -23,12 +23,11 @@ const lostFoundClaimSchema = new mongoose.Schema(
     },
 
     proofDescription: {
-      type: String,
-      required: [true, "Ownership proof is required"],
-      trim: true,
-      maxlength: 1000,
-       default: "",
-    },
+  type: String,
+  trim: true,
+  maxlength: 1000,
+  default: "",
+},
 
     status: {
       type: String,
