@@ -34,7 +34,7 @@ const userSchema = new mongoose.Schema(
       required: true,
     },
 
-    year: { type: Number, min: 1, max: 4, default: 1 },
+    year: { type: Number, min: 1, max: 4, default: "" },
 
     className: {
       type: String,

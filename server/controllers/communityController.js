@@ -21,9 +21,9 @@ const getMatchingStudents = async (year, section) => {
 
 const populateCommunity = (query) =>
   query
-    .populate("owner", "name role")
-    .populate("members", "name email role")
-    .populate("posts.author", "name role");
+    .populate("owner", "name email role rollNumber")
+    .populate("members", "name email role rollNumber")
+    .populate("posts.author", "name email role rollNumber");
 
 const getCommunities = async (req, res) => {
   try {

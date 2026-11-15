@@ -189,9 +189,9 @@ const getReports = async (req, res) => {
 
     const [reports, total] = await Promise.all([
       Report.find(filter)
-        .populate("reportedBy", "name email role")
-        .populate("assignedTo", "name email")
-        .populate("helpMessages.teacher", "name role")
+       .populate("reportedBy", "name email role rollNumber")
+.populate("assignedTo", "name email role rollNumber")
+.populate("helpMessages.teacher", "name email role rollNumber")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -261,8 +261,8 @@ const getReportById = async (req, res) => {
     }
 
     const report = await Report.findById(id)
-      .populate("reportedBy", "name email role")
-      .populate("assignedTo", "name email");
+       .populate("reportedBy", "name email role rollNumber")
+.populate("assignedTo", "name email role rollNumber")
 
     if (!report) {
       return res.status(404).json({
@@ -354,7 +354,7 @@ const addHelpMessage = async (req, res) => {
     await report.save();
 
     const updatedReport = await Report.findById(id)
-      .populate("helpMessages.teacher", "name role");
+.populate("helpMessages.teacher", "name email role rollNumber")
 
     return res.status(201).json({
       success: true,

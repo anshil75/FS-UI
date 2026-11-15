@@ -42,8 +42,10 @@ const getUsers = async (req, res) => {
       total,
       page,
       pages: Math.ceil(total / limit),
-      users,
-    });
+users: users.map((user) => ({
+  ...user.toObject(),
+  campusId: String(req.campus._id),
+})),    });
   } catch (error) {
     console.error("Get users error:", error.message);
     res.status(500).json({ success: false, message: "Unable to fetch users" });
@@ -95,8 +97,10 @@ const createUser = async (req, res) => {
       email: normalizedEmail,
       password: hashedPassword,
       role,
-      year: Number(year || 1),
-      className: className || "",
+year: ["Student", "Student CR"].includes(role)
+  ? Number(year)
+  : undefined,
+        className: className || "",
       section: section || "",
       rollNumber: rollNumber || "",
     });

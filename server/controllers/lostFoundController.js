@@ -266,8 +266,8 @@ const getItems = async (req, res) => {
 
     const [items, total] = await Promise.all([
       LostFound.find(filter)
-        .populate("postedBy", "name email role")
-        .populate("verifiedBy", "name role")
+        .populate("postedBy", "name email role rollNumber")
+.populate("verifiedBy", "name email role rollNumber")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -305,8 +305,8 @@ const getItemById = async (req, res) => {
     }
 
     const item = await LostFound.findById(req.params.id)
-      .populate("postedBy", "name email role")
-      .populate("verifiedBy", "name role");
+      .populate("postedBy", "name email role rollNumber")
+.populate("verifiedBy", "name email role rollNumber");
 
     if (!item) {
       return res.status(404).json({
@@ -612,14 +612,20 @@ const getClaims = async (req, res) => {
 
     const claims = await LostFoundClaim.find(filter)
       .populate({
-        path: "item",
-        populate: [
-          { path: "postedBy", select: "name role" },
-          { path: "verifiedBy", select: "name role" },
-        ],
-      })
-      .populate("claimedBy", "name email role")
-      .populate("reviewedBy", "name role")
+  path: "item",
+  populate: [
+    {
+      path: "postedBy",
+      select: "name email role rollNumber",
+    },
+    {
+      path: "verifiedBy",
+      select: "name email role rollNumber",
+    },
+  ],
+})
+.populate("claimedBy", "name email role rollNumber")
+.populate("reviewedBy", "name email role rollNumber")
       .sort({ createdAt: -1 });
 
     return res.status(200).json({
