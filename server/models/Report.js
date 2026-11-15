@@ -91,7 +91,25 @@ const reportSchema = new mongoose.Schema(
       maxlength: 1000,
       default: "",
     },
-
+helpMessages: [
+  {
+    teacher: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true,
+    },
+    message: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000,
+    },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+  },
+],
     resolvedAt: {
       type: Date,
       default: null,

@@ -8,6 +8,7 @@ const {
   getReports,
   getMyReports,
   getReportById,
+  addHelpMessage,
   updateReportStatus,
   assignReportTeam,
 } = require("../controllers/reportController");
@@ -45,7 +46,11 @@ router.patch(
   authorize("Admin"),
   updateReportStatus
 );
-
+router.post(
+  "/:id/help",
+  authorize("Teacher"),
+  addHelpMessage
+);
 router.get(
   "/:id",
   authorize("Admin", "Teacher"),

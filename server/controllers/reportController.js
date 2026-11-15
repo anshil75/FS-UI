@@ -191,6 +191,7 @@ const getReports = async (req, res) => {
       Report.find(filter)
         .populate("reportedBy", "name email role")
         .populate("assignedTo", "name email")
+        .populate("helpMessages.teacher", "name role")
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
@@ -308,6 +309,68 @@ const assignReportTeam = async (req, res) => {
   }
 };
 
+
+// Teacher shares an observation or offers help on a report
+const addHelpMessage = async (req, res) => {
+  try {
+    if (req.user.role !== "Teacher") {
+      return res.status(403).json({
+        success: false,
+        message: "Only teachers can share observations",
+      });
+    }
+
+    const { id } = req.params;
+    const message = String(req.body.message || "").trim();
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid report ID",
+      });
+    }
+
+    if (!message || message.length > 1000) {
+      return res.status(400).json({
+        success: false,
+        message: "Message must be between 1 and 1000 characters",
+      });
+    }
+
+    const report = await Report.findById(id);
+
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        message: "Report not found",
+      });
+    }
+
+    report.helpMessages.push({
+      teacher: req.user._id,
+      message,
+    });
+
+    await report.save();
+
+    const updatedReport = await Report.findById(id)
+      .populate("helpMessages.teacher", "name role");
+
+    return res.status(201).json({
+      success: true,
+      message: "Your observation has been shared",
+      helpMessages: updatedReport.helpMessages,
+    });
+  } catch (error) {
+    console.error("Add help message error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unable to share your observation",
+    });
+  }
+};
+
 // Admin updates status
 const updateReportStatus = async (req, res) => {
   try {
@@ -376,5 +439,6 @@ module.exports = {
   getMyReports,
   getReportById,
   assignReportTeam,
+    addHelpMessage,
   updateReportStatus,
 };

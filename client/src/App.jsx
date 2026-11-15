@@ -870,6 +870,9 @@ function Reports() {
   const [err, setErr] = useState("");
   const [success, setSuccess] = useState("");
   const [search, setSearch] = useState("");
+  const [helpReportId, setHelpReportId] = useState(null);
+const [helpMessage, setHelpMessage] = useState("");
+const [helpBusy, setHelpBusy] = useState(false);
 
   const [form, setForm] = useState({
     title: "",
@@ -986,6 +989,33 @@ function Reports() {
       setErr(error.message);
     }
   }
+
+async function submitHelpMessage(id) {
+  if (!helpMessage.trim()) {
+    setErr("Please enter your observation.");
+    return;
+  }
+
+  try {
+    setHelpBusy(true);
+    setErr("");
+
+    await api(`/api/reports/${id}/help`, {
+      method: "POST",
+      body: json({ message: helpMessage.trim() }),
+    });
+
+    setHelpMessage("");
+    setHelpReportId(null);
+    setSuccess("Your observation has been shared successfully.");
+
+    await load();
+  } catch (error) {
+    setErr(error.message || "Unable to share your observation.");
+  } finally {
+    setHelpBusy(false);
+  }
+}
 
   // Admin-only department assignment.
   async function assignTeam(id, assignedTeam) {
@@ -1146,6 +1176,78 @@ function Reports() {
                     />
                   ))}
                 </div>
+
+                {/* Teacher can share observations */}
+{user?.role === "Teacher" && (
+  <div style={{ marginTop: 12 }}>
+    <button
+      type="button"
+      className="btn s"
+      onClick={() => {
+        setHelpReportId(
+          helpReportId === report._id ? null : report._id
+        );
+        setHelpMessage("");
+      }}
+    >
+      I Can Help
+    </button>
+
+    {helpReportId === report._id && (
+      <div style={{ marginTop: 12 }}>
+        <label>
+          Share what you witnessed or how you can help
+        </label>
+
+        <textarea
+          rows={3}
+          maxLength={1000}
+          value={helpMessage}
+          onChange={(e) => setHelpMessage(e.target.value)}
+          placeholder="I saw something related to this incident..."
+        />
+
+        <div className="row" style={{ marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn s"
+            disabled={helpBusy || !helpMessage.trim()}
+            onClick={() => submitHelpMessage(report._id)}
+          >
+            {helpBusy ? "Sending..." : "Send Observation"}
+          </button>
+
+          <button
+            type="button"
+            className="btn s g"
+            onClick={() => {
+              setHelpReportId(null);
+              setHelpMessage("");
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    )}
+
+    {/* Previously shared observations */}
+    {(report.helpMessages || []).map((item, index) => (
+      <div
+        key={item._id || index}
+        className="card"
+        style={{ marginTop: 10 }}
+      >
+        <b>{item.teacher?.name || "Teacher"}</b>
+        <p>{item.message}</p>
+        <small className="mut">
+          {new Date(item.createdAt).toLocaleString()}
+        </small>
+      </div>
+    ))}
+  </div>
+)}
+
 
                 {/* Only Admin can manage reports */}
                 {canManageReports &&
