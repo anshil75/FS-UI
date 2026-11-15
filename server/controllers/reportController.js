@@ -64,37 +64,91 @@ const createReport = async (req, res) => {
 };
 
 // Serve a report image (authenticated, tenant-scoped)
+
+// Serve a report image (authenticated and tenant-scoped)
 const getReportImage = async (req, res) => {
   try {
     const { imageId } = req.params;
-    if (!mongoose.Types.ObjectId.isValid(imageId))
-      return res.status(400).json({ success: false, message: "Invalid image ID" });
-    const bucket = getGridFSBucket();
-    const files = await bucket.find({ _id: new mongoose.Types.ObjectId(imageId) }).toArray();
-    if (!files || files.length === 0) return res.status(404).json({ success: false, message: "Image not found" });
-    const file = files[0];
-    // Validate tenant ownership
+
+    if (!mongoose.Types.ObjectId.isValid(imageId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid image ID",
+      });
+    }
+
     const tenantId = req.campus?._id;
-if (
-  !tenantId ||
-  !file.metadata?.tenantId ||
-  String(file.metadata.tenantId) !== String(tenantId)
-) {
-  return res.status(403).json({
-    success: false,
-    message: "Access denied",
-  });
-}      return res.status(403).json({ success: false, message: "Access denied" });
-    res.set("Content-Type", file.metadata?.contentType || "image/jpeg");
+
+    if (!tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "Campus context missing",
+      });
+    }
+
+    const bucket = getGridFSBucket();
+    const objectId = new mongoose.Types.ObjectId(imageId);
+
+    const file = await bucket.find({ _id: objectId }).next();
+
+    if (!file) {
+      return res.status(404).json({
+        success: false,
+        message: "Image not found",
+      });
+    }
+
+    if (
+      !file.metadata?.tenantId ||
+      String(file.metadata.tenantId) !== String(tenantId)
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied",
+      });
+    }
+
+    const contentType = file.metadata?.contentType;
+
+    if (!["image/jpeg", "image/png", "image/webp"].includes(contentType)) {
+      return res.status(415).json({
+        success: false,
+        message: "Unsupported image format",
+      });
+    }
+
+    res.set("Content-Type", contentType);
     res.set("Cache-Control", "private, max-age=3600");
     res.set("X-Content-Type-Options", "nosniff");
-    const downloadStream = bucket.openDownloadStream(new mongoose.Types.ObjectId(imageId));
-    downloadStream.on("error", () => res.status(404).json({ success: false, message: "Image not found" }));
+
+    const downloadStream = bucket.openDownloadStream(objectId);
+
+    downloadStream.on("error", (error) => {
+      console.error("Report image stream error:", error);
+
+      if (!res.headersSent) {
+        res.status(404).json({
+          success: false,
+          message: "Image file could not be retrieved",
+        });
+      } else {
+        res.destroy(error);
+      }
+    });
+
     downloadStream.pipe(res);
   } catch (error) {
-    res.status(500).json({ success: false, message: "Unable to retrieve image" });
+    console.error("Get report image error:", error);
+
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Unable to retrieve image",
+      });
+    }
   }
 };
+
 
 // Get reports with pagination and filters
 

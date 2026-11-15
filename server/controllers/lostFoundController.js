@@ -333,39 +333,39 @@ const getItemById = async (req, res) => {
 const getImage = async (req, res) => {
   try {
     const { imageId } = req.params;
+    const tenantId = req.campus?._id;
 
-    if (!mongoose.Types.ObjectId.isValid(imageId)) {
+    if (!mongoose.isValidObjectId(imageId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid image ID",
       });
     }
 
+    if (!tenantId) {
+      return res.status(403).json({
+        success: false,
+        message: "Campus access could not be verified",
+      });
+    }
+
     const bucket = getGridFSBucket();
+    const imageObjectId = new mongoose.Types.ObjectId(imageId);
 
-    const files = await bucket
-      .find({
-        _id: new mongoose.Types.ObjectId(imageId),
-        "metadata.tenantId": req.campus._id,
-      })
-      .toArray();
+    const file = await bucket.find({
+      _id: imageObjectId,
+      "metadata.tenantId": tenantId,
+    }).next();
 
-    if (!files.length) {
+    if (!file) {
       return res.status(404).json({
         success: false,
         message: "Image not found",
       });
     }
 
-    const file = files[0];
-
-    const allowedTypes = [
-      "image/jpeg",
-      "image/png",
-      "image/webp",
-    ];
-
     const contentType = file.metadata?.contentType;
+    const allowedTypes = ["image/jpeg", "image/png", "image/webp"];
 
     if (!allowedTypes.includes(contentType)) {
       return res.status(415).json({
@@ -374,17 +374,16 @@ const getImage = async (req, res) => {
       });
     }
 
-    res.set("Content-Type", contentType);
-    res.set("X-Content-Type-Options", "nosniff");
-    res.set("Cache-Control", "private, max-age=86400");
+    res.set({
+      "Content-Type": contentType,
+      "X-Content-Type-Options": "nosniff",
+      "Cache-Control": "private, no-store",
+    });
 
-    const downloadStream = bucket.openDownloadStream(
-      new mongoose.Types.ObjectId(imageId)
-    );
+    const stream = bucket.openDownloadStream(imageObjectId);
 
-    downloadStream.on("error", (error) => {
-      console.error("Image stream error:", error.message);
-
+    stream.on("error", (error) => {
+      console.error("Lost & Found image stream error:", error.message);
       if (!res.headersSent) {
         res.status(500).end("Unable to retrieve image");
       } else {
@@ -392,35 +391,39 @@ const getImage = async (req, res) => {
       }
     });
 
-    downloadStream.pipe(res);
+    stream.pipe(res);
   } catch (error) {
-    console.error("Get image error:", error.message);
+    console.error("Get Lost & Found image error:", error);
 
-    return res.status(500).json({
-      success: false,
-      message: "Unable to retrieve image",
-    });
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: "Unable to retrieve image",
+      });
+    }
   }
 };
 
 // 5. Submit a claim for a Found item
+
 const submitClaim = async (req, res) => {
   const uploadedImageIds = [];
 
   try {
     const { message, proofDescription } = req.body;
 
-    if (
-      typeof message !== "string" ||
-      !message.trim() ||
-      typeof proofDescription !== "string" ||
-      !proofDescription.trim()
-    ) {
+    if (typeof message !== "string" || !message.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Claim message and ownership proof are required",
+        message: "Claim message is required",
       });
     }
+
+    // Ownership proof description is optional
+    const safeProofDescription =
+      typeof proofDescription === "string"
+        ? proofDescription.trim()
+        : "";
 
     if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
       return res.status(400).json({
@@ -482,7 +485,7 @@ const submitClaim = async (req, res) => {
       item: item._id,
       claimedBy: req.user._id,
       message: message.trim(),
-      proofDescription: proofDescription.trim(),
+      proofDescription: safeProofDescription,
       proofImages: uploadedImageIds,
     });
 
@@ -499,7 +502,10 @@ const submitClaim = async (req, res) => {
       try {
         await getGridFSBucket().delete(imageId);
       } catch (cleanupError) {
-        console.error("Claim image cleanup error:", cleanupError.message);
+        console.error(
+          "Claim image cleanup error:",
+          cleanupError.message
+        );
       }
     }
 
@@ -518,6 +524,7 @@ const submitClaim = async (req, res) => {
     });
   }
 };
+
 // 6. Get claims
 const getClaims = async (req, res) => {
   try {

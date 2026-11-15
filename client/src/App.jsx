@@ -385,7 +385,16 @@ function Profile(){
   const [msg,setMsg]=useState("");const [pwdMsg,setPwdMsg]=useState("");const [busy,setBusy]=useState(false);
 
   async function saveProfile(e){e.preventDefault();setBusy(true);setMsg("");try{
-    const d=await api("/api/auth/me",{method:"PATCH",body:json(form)});
+    const isStaffRole = ["Admin", "Teacher"].includes(user?.role);
+    const profilePayload = isStaffRole
+      ? { name: form.name }
+      : {
+          name: form.name,
+          year: Number(form.year || 1),
+          className: form.className,
+          section: form.section,
+        };
+    const d=await api("/api/auth/me",{method:"PATCH",body:json(profilePayload)});
     setMsg("Profile updated successfully.");
     login(token,d.user);
   }catch(x){setMsg(x.message)}finally{setBusy(false)}}
@@ -401,9 +410,11 @@ function Profile(){
       <label>Full name</label><input required value={form.name} onChange={e=>setForm({...form,name:e.target.value})}/>
       <label>Email <span className="mut">(cannot be changed here)</span></label><input disabled value={user?.email||""}/>
       <label>Role</label><input disabled value={user?.role||""}/>
-      <label>Year</label><select value={form.year} onChange={e=>setForm({...form,year:Number(e.target.value)})}>{[1,2,3,4].map(y=><option key={y} value={y}>Year {y}</option>)}</select>
-      <label>Class / Course</label><input value={form.className} onChange={e=>setForm({...form,className:e.target.value})}/>
-      <label>Section</label><input value={form.section} onChange={e=>setForm({...form,section:e.target.value})}/>
+      {!["Admin", "Teacher"].includes(user?.role) && <>
+        <label>Year</label><select value={form.year} onChange={e=>setForm({...form,year:Number(e.target.value)})}>{[1,2,3,4].map(y=><option key={y} value={y}>Year {y}</option>)}</select>
+        <label>Class / Course</label><input value={form.className} onChange={e=>setForm({...form,className:e.target.value})}/>
+        <label>Section</label><input value={form.section} onChange={e=>setForm({...form,section:e.target.value})}/>
+      </>}
       <p><button className="btn" disabled={busy}>{busy?"Saving...":"Save profile"}</button></p>
       <Notice text={msg} type={msg.includes("success")?"success":"error"}/>
     </form>
@@ -418,6 +429,36 @@ function Profile(){
 }
 
 /* ─── Lost & Found ───────────────────────────── */
+
+function getCampusImageHeaders() {
+  const headers = new Headers();
+
+  const token = sessionStorage.getItem("campuscare_token");
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const hostParts = window.location.hostname.split(".");
+  const rootDomain = (
+    import.meta.env.VITE_ROOT_DOMAIN || "campuscare.in"
+  ).toLowerCase();
+
+  const inferredSlug =
+    hostParts.length > 2 &&
+    hostParts.slice(-2).join(".") === rootDomain
+      ? hostParts[0]
+      : "";
+
+  const campusSlug =
+    sessionStorage.getItem("campuscare_campus_slug") ||
+    inferredSlug;
+
+  if (campusSlug) {
+    headers.set("X-Campus-Slug", campusSlug);
+  }
+
+  return headers;
+}
 
 function ZoomableImage({ src, alt = "Image", className = "" }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -482,25 +523,42 @@ function SecureImage({ src, alt }) {
 
   useEffect(() => {
     let objectUrl;
+    let cancelled = false;
 
-    const id = String(src || "").split("/").pop();
-    if (!id) return;
+    const id = String(src || "").split("/").filter(Boolean).pop();
 
-    const token = sessionStorage.getItem("campuscare_token");
+    if (!id) {
+      setUrl("");
+      return;
+    }
 
-    fetch(`${API_URL}/api/lost-found/images/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    setUrl("");
+
+    fetch(`${API_URL}/api/lost-found/images/${encodeURIComponent(id)}`, {
+      headers: getCampusImageHeaders(),
     })
-      .then((response) =>
-        response.ok ? response.blob() : Promise.reject()
-      )
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Lost & Found image failed: ${response.status}`);
+        }
+        return response.blob();
+      })
       .then((blob) => {
+        if (cancelled) return;
+
+        if (!blob.type.startsWith("image/")) {
+          throw new Error("Server did not return an image");
+        }
+
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("Lost & Found image error:", error);
+      });
 
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [src]);
@@ -513,6 +571,7 @@ function SecureImage({ src, alt }) {
     />
   ) : null;
 }
+
 
 function LostFound(){
   const {user}=useAuth();
@@ -570,7 +629,12 @@ async function sendClaim(id) {
   } finally {
     setBusy(false);
   }
-}  async function review(id,decision){try{await api(`/api/lost-found/claims/${id}/review`,{method:"PATCH",body:json({decision,reviewMessage:"Reviewed by campus staff"})});await load()}catch(e){setError(e.message)}}
+}  async function review(id,decision){try{
+    await api(`/api/lost-found/claims/${id}/review`,{method:"PATCH",body:json({decision,reviewMessage:"Reviewed by campus staff"})});
+    const data = await api("/api/lost-found/claims");
+    setClaims(data.claims || []);
+    await load();
+  }catch(e){setError(e.message)}}
   async function deleteItem(id){if(!confirm("Delete this post?"))return;try{await api(`/api/lost-found/${id}`,{method:"DELETE"});await load()}catch(e){setError(e.message)}}
 
   const isOwner=(i)=>String(i.postedBy?._id||i.postedBy)===String(user.id||user._id);
@@ -605,7 +669,7 @@ async function sendClaim(id) {
         ...prev,
         [i._id]: {
           ...prev[i._id],
-          proofImages: Array.from(e.target.files).slice(0, 3),
+          files: Array.from(e.target.files || []).slice(0, 3),
         },
       }))
     }
@@ -638,30 +702,48 @@ async function sendClaim(id) {
 
 /* ─── Reports ────────────────────────────────── */
 
+
 function SecureReportImage({ src }) {
   const [url, setUrl] = useState("");
 
   useEffect(() => {
     let objectUrl;
+    let cancelled = false;
 
-    const id = String(src || "").split("/").pop();
-    if (!id) return;
+    const id = String(src || "").split("/").filter(Boolean).pop();
 
-    const token = sessionStorage.getItem("campuscare_token");
+    if (!id) {
+      setUrl("");
+      return;
+    }
 
-    fetch(`${API_URL}/api/reports/images/${id}`, {
-      headers: { Authorization: `Bearer ${token}` },
+    setUrl("");
+
+    fetch(`${API_URL}/api/reports/images/${encodeURIComponent(id)}`, {
+      headers: getCampusImageHeaders(),
     })
-      .then((response) =>
-        response.ok ? response.blob() : Promise.reject()
-      )
+      .then(async (response) => {
+        if (!response.ok) {
+          throw new Error(`Report image failed: ${response.status}`);
+        }
+        return response.blob();
+      })
       .then((blob) => {
+        if (cancelled) return;
+
+        if (!blob.type.startsWith("image/")) {
+          throw new Error("Server did not return an image");
+        }
+
         objectUrl = URL.createObjectURL(blob);
         setUrl(objectUrl);
       })
-      .catch(() => {});
+      .catch((error) => {
+        console.error("Report image error:", error);
+      });
 
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [src]);
@@ -1286,27 +1368,46 @@ function Community(){
 
 /* ─── Examinations ───────────────────────────── */
 
+
 function ExamChart({ examId }) {
   const [src, setSrc] = useState("");
 
   useEffect(() => {
     let objectUrl;
+    let cancelled = false;
 
-    const token = sessionStorage.getItem("campuscare_token");
+    async function loadChart() {
+      try {
+        setSrc("");
 
-    fetch(`${API_URL}/api/exams/${examId}/seating-chart`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((response) =>
-        response.ok ? response.blob() : Promise.reject()
-      )
-      .then((blob) => {
+        const response = await fetch(
+          `${API_URL}/api/exams/${examId}/seating-chart`,
+          { headers: getCampusImageHeaders() }
+        );
+
+        if (!response.ok) {
+          throw new Error(`Exam chart failed: ${response.status}`);
+        }
+
+        const blob = await response.blob();
+
+        if (!blob.type.startsWith("image/")) {
+          throw new Error("Server did not return an image");
+        }
+
+        if (cancelled) return;
+
         objectUrl = URL.createObjectURL(blob);
         setSrc(objectUrl);
-      })
-      .catch(() => {});
+      } catch (error) {
+        console.error("Exam chart loading error:", error);
+      }
+    }
+
+    if (examId) loadChart();
 
     return () => {
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [examId]);

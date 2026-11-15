@@ -32,8 +32,11 @@ router.get("/", getItems);
 
 // Claim routes - keep these before /:id
 router.get("/claims", getClaims);
-router.post("/:id/claims", submitClaim);
-
+router.post(
+  "/:id/claims",
+  upload.array("proofImages", 3),
+  submitClaim
+);
 // Teacher/Admin verification
 router.patch(
   "/claims/:claimId/review",
