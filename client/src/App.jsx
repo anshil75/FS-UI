@@ -683,9 +683,9 @@ async function sendClaim(id, type = "Ownership") {
             {i.status!=="Resolved"&&(isOwner(i)||isAdmin(user))&&<button className="btn s" onClick={()=>markResolved(i._id)}>Mark resolved</button>}
             {(isOwner(i)||isAdmin(user))&&<button className="btn s g" onClick={()=>deleteItem(i._id)}>Delete</button>}
             {i.itemType==="Found"&&i.status==="Open"&&!isOwner(i)&&<div style={{width:"100%"}}>
-
-              <textarea placeholder="Tell us why this item belongs to you" value={claim[i._id]?.message||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],message:e.target.value}})}/>
               <textarea required placeholder="Describe identifying details / ownership proof" value={claim[i._id]?.proof||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],proof:e.target.value}})}/>
+
+              <textarea placeholder="I will collect it from you or i can collect it from that place after [time]" value={claim[i._id]?.message||""} onChange={e=>setClaim({...claim,[i._id]:{...claim[i._id],message:e.target.value}})}/>
               <div className="claim-image-upload">
   <label>Upload Ownership Proof (Optional)</label>
   <input
@@ -779,8 +779,19 @@ async function sendClaim(id, type = "Ownership") {
       <form className="card" onSubmit={post}>
         <h3>{editId?"Edit":"Post a"} {tab.toLowerCase()} item</h3>
         <label>Item title</label><input required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
-        <label>Description</label><textarea required value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-        <label>Category</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{["Electronics","Documents","Books","Accessories","Clothing","Other"].map(x=><option key={x}>{x}</option>)}</select>
+<label>
+  {tab === "Found" ? "Description / Collect It From" : "Description"}
+</label>
+<textarea
+  required
+  value={form.description}
+  onChange={e=>setForm({...form,description:e.target.value})}
+  placeholder={
+    tab === "Found"
+      ? "Describe the item and mention where and when it can be collected. Example: Collect it from the college reception between 2 PM and 4 PM, and after it collect it from that particular place."
+      : ""
+  }
+/>        <label>Category</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{["Electronics","Documents","Books","Accessories","Clothing","Other"].map(x=><option key={x}>{x}</option>)}</select>
         <label>Location</label><input required value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/>
         <label>Date</label><input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/>
         <label>Photos {editId?"(leave empty to keep existing)":"(required)"}</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple={!editId} required={!editId} onChange={e=>setFiles([...e.target.files])}/>
