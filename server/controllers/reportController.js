@@ -75,8 +75,16 @@ const getReportImage = async (req, res) => {
     const file = files[0];
     // Validate tenant ownership
     const tenantId = req.campus?._id;
-    if (tenantId && file.metadata?.tenantId && String(file.metadata.tenantId) !== String(tenantId))
-      return res.status(403).json({ success: false, message: "Access denied" });
+if (
+  !tenantId ||
+  !file.metadata?.tenantId ||
+  String(file.metadata.tenantId) !== String(tenantId)
+) {
+  return res.status(403).json({
+    success: false,
+    message: "Access denied",
+  });
+}      return res.status(403).json({ success: false, message: "Access denied" });
     res.set("Content-Type", file.metadata?.contentType || "image/jpeg");
     res.set("Cache-Control", "private, max-age=3600");
     res.set("X-Content-Type-Options", "nosniff");
@@ -89,8 +97,16 @@ const getReportImage = async (req, res) => {
 };
 
 // Get reports with pagination and filters
+
 const getReports = async (req, res) => {
   try {
+    if (!["Admin", "Teacher"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Admin and Teachers can view campus reports.",
+      });
+    }
+
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit) || 10));
 
@@ -99,17 +115,21 @@ const getReports = async (req, res) => {
     if (req.query.status) filter.status = req.query.status;
     if (req.query.category) filter.category = req.query.category;
 
-    // Only Admin can view the campus-wide queue. Every other campus role sees own submissions.
-    if (req.user.role !== "Admin") {
-      filter.reportedBy = req.user._id;
-    }
+    if (req.query.search?.trim()) {
+      const safeSearch = req.query.search
+        .trim()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    if (req.query.search && req.query.search.trim()) {
-      const safeSearch = req.query.search.trim().replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");
       const regex = new RegExp(safeSearch, "i");
+
       filter.$or = [
-        { reportId: regex }, { title: regex }, { description: regex },
-        { category: regex }, { location: regex }, { assignedTeam: regex }, { status: regex }
+        { reportId: regex },
+        { title: regex },
+        { description: regex },
+        { category: regex },
+        { location: regex },
+        { assignedTeam: regex },
+        { status: regex },
       ];
     }
 
@@ -120,6 +140,7 @@ const getReports = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit),
+
       Report.countDocuments(filter),
     ]);
 
@@ -134,13 +155,15 @@ const getReports = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Get reports error:", error.message);
+    console.error("Get reports error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Unable to fetch reports",
     });
   }
 };
+
 
 // Get logged-in user's reports
 const getMyReports = async (req, res) => {
@@ -163,8 +186,16 @@ const getMyReports = async (req, res) => {
 };
 
 // Get one report
+
 const getReportById = async (req, res) => {
   try {
+    if (!["Admin", "Teacher"].includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: "Only Admin and Teachers can access reports.",
+      });
+    }
+
     const { id } = req.params;
 
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -185,22 +216,13 @@ const getReportById = async (req, res) => {
       });
     }
 
-    if (
-      req.user.role !== "Admin" &&
-      report.reportedBy._id.toString() !== req.user._id.toString()
-    ) {
-      return res.status(403).json({
-        success: false,
-        message: "You cannot access this report",
-      });
-    }
-
-
     return res.status(200).json({
       success: true,
       report,
     });
   } catch (error) {
+    console.error("Get report by ID error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Unable to fetch report",

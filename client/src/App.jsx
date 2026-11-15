@@ -491,75 +491,559 @@ function LostFound(){
 }
 
 /* ─── Reports ────────────────────────────────── */
-function SecureReportImage({src}){const [url,setUrl]=useState("");useEffect(()=>{let objectUrl;const id=String(src||"").split("/").pop();if(!id)return;const token=sessionStorage.getItem("campuscare_token");fetch(`${API_URL}/api/reports/images/${id}`,{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.ok?r.blob():Promise.reject()).then(b=>{objectUrl=URL.createObjectURL(b);setUrl(objectUrl)}).catch(()=>{});return()=>objectUrl&&URL.revokeObjectURL(objectUrl)},[src]);return url?<img src={url} alt="Report image" style={{width:150,height:110,objectFit:"cover",margin:"6px"}}/>:null}
 
-function Reports(){
-  const {user}=useAuth();
-  const [list,setList]=useState([]);const [err,setErr]=useState("");const [search,setSearch]=useState("");
-  const [form,setForm]=useState({title:"",description:"",category:"Maintenance",location:"",priority:"Medium"});
-  const [files,setFiles]=useState([]);const [busy,setBusy]=useState(false);
-  const [filterStatus,setFilterStatus]=useState("");const [filterCat,setFilterCat]=useState("");
+/* ─── Reports ────────────────────────────────── */
 
-  async function load(){try{
-    let url=`/api/reports?limit=50&search=${encodeURIComponent(search)}`;
-    if(filterStatus)url+=`&status=${filterStatus}`;
-    if(filterCat)url+=`&category=${filterCat}`;
-    const d=await api(url);setList(d.reports||[])
-  }catch(e){setErr(e.message)}}
-  useEffect(()=>{load()},[]);
+function SecureReportImage({ src }) {
+  const [url, setUrl] = useState("");
 
-  async function create(e){e.preventDefault();setBusy(true);setErr("");try{
-    const fd=new FormData();
-    Object.entries(form).forEach(([k,v])=>fd.append(k,v));
-    files.forEach(f=>fd.append("images",f));
-    await api("/api/reports",{method:"POST",body:fd});
-    setForm({title:"",description:"",category:"Maintenance",location:"",priority:"Medium"});setFiles([]);load();
-  }catch(e){setErr(e.message)}finally{setBusy(false)}}
+  useEffect(() => {
+    let objectUrl;
 
-  async function updateStatus(id,status){try{await api(`/api/reports/${id}/status`,{method:"PATCH",body:json({status,resolutionNote:status==="Resolved"?"Resolved by campus support":""})});load()}catch(e){setErr(e.message)}}
-  async function assignTeam(id,assignedTeam){try{await api(`/api/reports/${id}/assign-team`,{method:"PATCH",body:json({assignedTeam})});load()}catch(e){setErr(e.message)}}
+    const id = String(src || "").split("/").pop();
+    if (!id) return;
 
-  const filtered=list.filter(r=>[r.reportId,r.title,r.description,r.category,r.location,r.assignedTeam,r.status].join(" ").toLowerCase().includes(search.toLowerCase()));
+    const token = sessionStorage.getItem("campuscare_token");
 
-  return <Page title="Campus Support / Reports"><Notice text={err}/>
-    <div className="two">
-      <div className="card">
-        <h3>{isAdmin(user)?"All campus reports":"My reports"}</h3>
-        <SearchBox value={search} onChange={setSearch} placeholder="Search report ID, issue, category, location or team"/>
-        <div className="filter-row">
-          <select value={filterStatus} onChange={e=>{setFilterStatus(e.target.value);}}><option value="">All statuses</option>{["Submitted","Under Review","Assigned","In Progress","Resolved","Rejected"].map(s=><option key={s}>{s}</option>)}</select>
-          <select value={filterCat} onChange={e=>setFilterCat(e.target.value)}><option value="">All categories</option>{["Maintenance","Electrical","Cleanliness","Furniture","Safety","Vandalism","Damage","Littering","Other"].map(s=><option key={s}>{s}</option>)}</select>
-          <button className="btn s" onClick={load}>Filter</button>
-          <span>{filtered.length} reports</span>
-        </div>
-        {filtered.map(r=><div className="it" key={r._id}>
-          <div className="row"><b>{r.reportId} · {r.title}</b><Badge text={r.status}/></div>
-          <p>{r.description}</p>
-          <p className="mut">{r.category} · {r.location} · {r.priority} · by {r.reportedBy?.name}</p>
-          <p className="team-label">Assigned team: <b>{r.assignedTeam||"General Support"}</b></p>
-          <div className="row">{(r.images||[]).map((im,n)=><SecureReportImage key={n} src={`/api/reports/images/${im}`}/>)}</div>
-          {isAdmin(user)&&r.status!=="Resolved"&&r.status!=="Rejected"&&<>
-            <div className="row"><select aria-label="Assign support department" defaultValue={r.assignedTeam||"General Support"} onChange={e=>assignTeam(r._id,e.target.value)}>{["Maintenance Team","Electrical Team","Housekeeping Team","Furniture Team","Security Team","General Support"].map(t=><option key={t}>{t}</option>)}</select></div>
-            <div className="row"><button className="btn s" disabled={r.status==="In Progress"} onClick={()=>updateStatus(r._id,"In Progress")}>In progress</button><button className="btn s" onClick={()=>updateStatus(r._id,"Resolved")}>Resolve</button><button className="btn s g" onClick={()=>updateStatus(r._id,"Rejected")}>Reject</button></div>
-          </>}
-          {(r.status==="Resolved"||r.status==="Rejected")&&<p className="mut">This report is closed.{r.resolutionNote&&` Note: ${r.resolutionNote}`}</p>}
-        </div>)}
-        {!filtered.length&&<p className="mut">No matching reports found.</p>}
-      </div>
-      <form className="card" onSubmit={create}>
-        <h3>New report</h3>
-        <label>Issue title</label><input required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
-        <label>Type</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{["Maintenance","Electrical","Cleanliness","Furniture","Safety","Vandalism","Damage","Littering","Other"].map(x=><option key={x}>{x}</option>)}</select>
-        <label>Place</label><input required value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/>
-        <label>What happened</label><textarea required value={form.description} onChange={e=>setForm({...form,description:e.target.value})}/>
-        <label>Priority</label><select value={form.priority} onChange={e=>setForm({...form,priority:e.target.value})}>{["Low","Medium","High","Urgent"].map(x=><option key={x}>{x}</option>)}</select>
-        <label>Photos (optional, up to 5)</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple onChange={e=>setFiles([...e.target.files])}/>
-        <p><button className="btn" disabled={busy}>{busy?"Submitting...":"Submit report"}</button></p>
-        <div className="emergency-box"><h3>Need Emergency Help?</h3><p>For urgent campus safety or security issues, contact campus support directly.</p><a className="btn" href="tel:+911412000000">Call Campus Support</a></div>
-      </form>
-    </div>
-  </Page>
+    fetch(`${API_URL}/api/reports/images/${id}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+      .then((r) => (r.ok ? r.blob() : Promise.reject()))
+      .then((blob) => {
+        objectUrl = URL.createObjectURL(blob);
+        setUrl(objectUrl);
+      })
+      .catch(() => {});
+
+    return () => {
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [src]);
+
+  return url ? (
+    <img
+      src={url}
+      alt="Report image"
+      style={{
+        width: 150,
+        height: 110,
+        objectFit: "cover",
+        margin: "6px",
+      }}
+    />
+  ) : null;
 }
+
+function Reports() {
+  const { user } = useAuth();
+
+  const canViewReports = ["Admin", "Teacher"].includes(user?.role);
+  const canManageReports = user?.role === "Admin";
+
+  const [list, setList] = useState([]);
+  const [err, setErr] = useState("");
+  const [success, setSuccess] = useState("");
+  const [search, setSearch] = useState("");
+
+  const [form, setForm] = useState({
+    title: "",
+    description: "",
+    category: "Maintenance",
+    location: "",
+    priority: "Medium",
+  });
+
+  const [files, setFiles] = useState([]);
+  const [busy, setBusy] = useState(false);
+
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterCat, setFilterCat] = useState("");
+
+  // Only Admin and Teachers can load the report listing.
+  async function load() {
+    if (!canViewReports) return;
+
+    try {
+      setErr("");
+
+      let url = `/api/reports?limit=50&search=${encodeURIComponent(search)}`;
+
+      if (filterStatus) {
+        url += `&status=${encodeURIComponent(filterStatus)}`;
+      }
+
+      if (filterCat) {
+        url += `&category=${encodeURIComponent(filterCat)}`;
+      }
+
+      const data = await api(url);
+      setList(data.reports || []);
+    } catch (error) {
+      setErr(error.message || "Unable to load reports.");
+    }
+  }
+
+  useEffect(() => {
+    if (canViewReports) {
+      load();
+    } else {
+      setList([]);
+    }
+  }, [canViewReports]);
+
+  // Submit a new report. Available to all campus roles.
+  async function create(e) {
+    e.preventDefault();
+
+    setBusy(true);
+    setErr("");
+    setSuccess("");
+
+    try {
+      const fd = new FormData();
+
+      Object.entries(form).forEach(([key, value]) => {
+        fd.append(key, value);
+      });
+
+      files.slice(0, 5).forEach((file) => {
+        fd.append("images", file);
+      });
+
+      await api("/api/reports", {
+        method: "POST",
+        body: fd,
+      });
+
+      setForm({
+        title: "",
+        description: "",
+        category: "Maintenance",
+        location: "",
+        priority: "Medium",
+      });
+
+      setFiles([]);
+
+      setSuccess(
+        "Your report has been submitted successfully!"
+      );
+
+      if (canViewReports) {
+        await load();
+      }
+    } catch (error) {
+      setErr(error.message || "Failed to submit your report.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Admin-only report status management.
+  async function updateStatus(id, status) {
+    try {
+      setErr("");
+
+      await api(`/api/reports/${id}/status`, {
+        method: "PATCH",
+        body: json({
+          status,
+          resolutionNote:
+            status === "Resolved"
+              ? "Resolved by campus support"
+              : "",
+        }),
+      });
+
+      await load();
+    } catch (error) {
+      setErr(error.message);
+    }
+  }
+
+  // Admin-only department assignment.
+  async function assignTeam(id, assignedTeam) {
+    try {
+      setErr("");
+
+      await api(`/api/reports/${id}/assign-team`, {
+        method: "PATCH",
+        body: json({ assignedTeam }),
+      });
+
+      await load();
+    } catch (error) {
+      setErr(error.message);
+    }
+  }
+
+  const filtered = list.filter((report) =>
+    [
+      report.reportId,
+      report.title,
+      report.description,
+      report.category,
+      report.location,
+      report.assignedTeam,
+      report.status,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
+
+  return (
+    <Page
+      title={
+        canViewReports
+          ? "Campus Support / Reports"
+          : "Report an Issue"
+      }
+    >
+      <Notice text={err} />
+
+      {success && (
+        <div
+          className="success-message"
+          role="status"
+          style={{
+            padding: "14px 16px",
+            marginBottom: "16px",
+            borderRadius: "6px",
+            background: "#e8f7ed",
+            color: "#176b36",
+          }}
+        >
+          {success}
+        </div>
+      )}
+
+      <div className="two">
+
+        {/* Report listing: Admin and Teachers only */}
+        {canViewReports && (
+          <div className="card">
+            <h3>
+              {canManageReports
+                ? "All Campus Reports"
+                : "Campus Reports"}
+            </h3>
+
+            <SearchBox
+              value={search}
+              onChange={setSearch}
+              placeholder="Search report ID, issue, category, location or team"
+            />
+
+            <div className="filter-row">
+              <select
+                value={filterStatus}
+                onChange={(e) =>
+                  setFilterStatus(e.target.value)
+                }
+              >
+                <option value="">All statuses</option>
+                {[
+                  "Submitted",
+                  "Under Review",
+                  "Assigned",
+                  "In Progress",
+                  "Resolved",
+                  "Rejected",
+                ].map((status) => (
+                  <option key={status}>{status}</option>
+                ))}
+              </select>
+
+              <select
+                value={filterCat}
+                onChange={(e) =>
+                  setFilterCat(e.target.value)
+                }
+              >
+                <option value="">All categories</option>
+                {[
+                  "Maintenance",
+                  "Electrical",
+                  "Cleanliness",
+                  "Furniture",
+                  "Safety",
+                  "Vandalism",
+                  "Damage",
+                  "Littering",
+                  "Other",
+                ].map((category) => (
+                  <option key={category}>{category}</option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                className="btn s"
+                onClick={load}
+              >
+                Filter
+              </button>
+
+              <span>{filtered.length} reports</span>
+            </div>
+
+            {filtered.map((report) => (
+              <div className="it" key={report._id}>
+                <div className="row">
+                  <b>
+                    {report.reportId} · {report.title}
+                  </b>
+                  <Badge text={report.status} />
+                </div>
+
+                <p>{report.description}</p>
+
+                <p className="mut">
+                  {report.category} · {report.location} ·{" "}
+                  {report.priority} · by{" "}
+                  {report.reportedBy?.name || "Campus user"}
+                </p>
+
+                <p className="team-label">
+                  Assigned team:{" "}
+                  <b>
+                    {report.assignedTeam || "General Support"}
+                  </b>
+                </p>
+
+                <div className="row">
+                  {(report.images || []).map((image, index) => (
+                    <SecureReportImage
+                      key={index}
+                      src={`/api/reports/images/${image}`}
+                    />
+                  ))}
+                </div>
+
+                {/* Only Admin can manage reports */}
+                {canManageReports &&
+                  report.status !== "Resolved" &&
+                  report.status !== "Rejected" && (
+                    <>
+                      <div className="row">
+                        <select
+                          aria-label="Assign support department"
+                          value={
+                            report.assignedTeam ||
+                            "General Support"
+                          }
+                          onChange={(e) =>
+                            assignTeam(
+                              report._id,
+                              e.target.value
+                            )
+                          }
+                        >
+                          {[
+                            "Maintenance Team",
+                            "Electrical Team",
+                            "Housekeeping Team",
+                            "Furniture Team",
+                            "Security Team",
+                            "General Support",
+                          ].map((team) => (
+                            <option key={team}>{team}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="row">
+                        <button
+                          type="button"
+                          className="btn s"
+                          disabled={
+                            report.status === "In Progress"
+                          }
+                          onClick={() =>
+                            updateStatus(
+                              report._id,
+                              "In Progress"
+                            )
+                          }
+                        >
+                          In Progress
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn s"
+                          onClick={() =>
+                            updateStatus(
+                              report._id,
+                              "Resolved"
+                            )
+                          }
+                        >
+                          Resolve
+                        </button>
+
+                        <button
+                          type="button"
+                          className="btn s g"
+                          onClick={() =>
+                            updateStatus(
+                              report._id,
+                              "Rejected"
+                            )
+                          }
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    </>
+                  )}
+
+                {(report.status === "Resolved" ||
+                  report.status === "Rejected") && (
+                  <p className="mut">
+                    This report is closed.
+                    {report.resolutionNote &&
+                      ` Note: ${report.resolutionNote}`}
+                  </p>
+                )}
+              </div>
+            ))}
+
+            {!filtered.length && (
+              <p className="mut">
+                No matching reports found.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* Report submission form: All campus roles */}
+        <form className="card" onSubmit={create}>
+          <h3>
+            {canViewReports
+              ? "Submit a New Report"
+              : "Report an Issue"}
+          </h3>
+
+          <p className="mut">
+            Report a campus issue to the administration
+            and support team.
+          </p>
+
+          <label>Issue title</label>
+          <input
+            required
+            value={form.title}
+            onChange={(e) =>
+              setForm({ ...form, title: e.target.value })
+            }
+          />
+
+          <label>Type</label>
+          <select
+            value={form.category}
+            onChange={(e) =>
+              setForm({ ...form, category: e.target.value })
+            }
+          >
+            {[
+              "Maintenance",
+              "Electrical",
+              "Cleanliness",
+              "Furniture",
+              "Safety",
+              "Vandalism",
+              "Damage",
+              "Littering",
+              "Other",
+            ].map((category) => (
+              <option key={category}>{category}</option>
+            ))}
+          </select>
+
+          <label>Place</label>
+          <input
+            required
+            value={form.location}
+            onChange={(e) =>
+              setForm({ ...form, location: e.target.value })
+            }
+          />
+
+          <label>What happened</label>
+          <textarea
+            required
+            value={form.description}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                description: e.target.value,
+              })
+            }
+          />
+
+          <label>Priority</label>
+          <select
+            value={form.priority}
+            onChange={(e) =>
+              setForm({ ...form, priority: e.target.value })
+            }
+          >
+            {["Low", "Medium", "High", "Urgent"].map(
+              (priority) => (
+                <option key={priority}>{priority}</option>
+              )
+            )}
+          </select>
+
+          <label>Photos (optional, up to 5)</label>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            multiple
+            onChange={(e) =>
+              setFiles(Array.from(e.target.files || []).slice(0, 5))
+            }
+          />
+
+          {files.length > 0 && (
+            <p className="mut">
+              {files.length} photo(s) selected
+            </p>
+          )}
+
+          <p>
+            <button
+              className="btn"
+              disabled={busy}
+              type="submit"
+            >
+              {busy ? "Submitting..." : "Submit Report"}
+            </button>
+          </p>
+
+          <div className="emergency-box">
+            <h3>Need Emergency Help?</h3>
+            <p>
+              For urgent campus safety or security issues,
+              contact campus support directly.
+            </p>
+            <a
+              className="btn"
+              href="tel:+911412000000"
+            >
+              Call Campus Support
+            </a>
+          </div>
+        </form>
+      </div>
+    </Page>
+  );
+}
+
 
 /* ─── Community ──────────────────────────────── */
 function Community(){
