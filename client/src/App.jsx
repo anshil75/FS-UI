@@ -1,3 +1,9 @@
+import lostFoundImage from "../../css/artwork/lost.jpg";
+import supportImage from "../../css/artwork/reports.jpg";
+import classImage from "../../css/artwork/community.jpg";
+import examImage from "../../css/artwork/exams.jpg";
+import campusImage from "../../css/artwork/campus.jpg";
+import campusIcons from "../../css/campus-icons.svg?no-inline";
 import { io } from "socket.io-client";
 import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route, Link, Navigate, useNavigate, useLocation } from "react-router-dom";
@@ -6,10 +12,10 @@ import { api, API_URL, json } from "./lib/api";
 
 /* ─── Constants ─────────────────────────────── */
 const modules = [
-  {path:"/lost-found",title:"Lost & Found",description:"Check found items, post lost items and verify ownership."},
-  {path:"/reports",title:"Campus Support",description:"Report maintenance and safety issues and track progress."},
-  {path:"/community",title:"Class Community",description:"Class groups, announcements, notes and assignments."},
-  {path:"/examinations",title:"Examinations",description:"Exam timetable, seating plans, teacher duties and requests."}
+  {path:"/lost-found",image:lostFoundImage,alt:"Backpack, water bottle and keys",title:"Lost & Found",description:"Check found items, post lost items and verify ownership."},
+  {path:"/reports",image:supportImage,alt:"Maintenance checklist and safety cone",title:"Smart Campus",description:"Report maintenance and safety issues and track progress."},
+  {path:"/community",image:classImage,alt:"Class notebooks and discussion bubbles",title:"ClassSpace",description:"Class groups, announcements, notes and assignments."},
+  {path:"/examinations",image:examImage,alt:"Exam calendar, clock and pencil",title:"Examinations",description:"Exam timetable, seating plans, teacher duties and requests."}
 ];
 const roleOf = u => u?.role || "Student";
 const isAdmin = u => roleOf(u) === "Admin";
@@ -21,47 +27,58 @@ const identityOf = (u) =>
     : (u?.email || "Email not available");
 
 /* ─── Shell / Navigation ─────────────────────── */
+const destinations = {
+  "/": ["Home", "dashboard"], "/dashboard": ["Dashboard", "dashboard"],
+  "/lost-found": ["Lost & Found", "box"], "/reports": ["Reports", "reports"],
+  "/community": ["ClassSpace", "community"], "/examinations": ["Exams", "exams"],
+  "/users": ["Users & roles", "users"], "/profile": ["Profile", "profile"],
+  "/help": ["Help & support", "help"], "/about": ["About", "campus"],
+  "/contact": ["Contact", "contact"], "/register-campus": ["Register campus", "campus"],
+  "/login": ["Log in", "login"], "/security": ["Security", "security"],
+  "/data": ["Data & backup", "data"]
+};
+
+function Icon({name}) {
+  return <svg className="icon" aria-hidden="true"><use href={campusIcons + "#" + name}/></svg>;
+}
+
 function Shell({children}) {
-  const {user,logout}=useAuth(); const loc=useLocation();
-  const active = path => loc.pathname === path || (path !== "/" && loc.pathname.startsWith(path + "/"));
+  const {user, logout} = useAuth();
+  const {pathname} = useLocation();
+  const links = user
+    ? ["/dashboard", "/lost-found", "/reports", "/community", "/examinations", ...(isAdmin(user) ? ["/users", "/security", "/data"] : []), "/profile", "/help"]
+    : ["/", "/about", "/contact", "/help", "/register-campus", "/login"];
   return <>
-    <header><div className="bar">
-      <Link className="brand" to={user?"/dashboard":"/"}>CAMPUSCARE</Link>
-      <nav>
-        {user ? <>
-          <Link className={active("/dashboard")?"on":""} to="/dashboard">Dashboard</Link>
-          <Link className={active("/lost-found")?"on":""} to="/lost-found">Lost & Found</Link>
-          <Link className={active("/reports")?"on":""} to="/reports">Reports</Link>
-          <Link className={active("/community")?"on":""} to="/community">Community</Link>
-          <Link className={active("/examinations")?"on":""} to="/examinations">Exams</Link>
-          {isAdmin(user)&&<Link className={active("/users")?"on":""} to="/users">Users</Link>}
-          <Link className={active("/profile")?"on":""} to="/profile">Profile</Link>
-          <Link className={active("/help")?"on":""} to="/help">Help</Link>
-          <button className="nav-logout" onClick={logout}>Logout</button>
-        </> : <>
-          <Link className={active("/")?"on":""} to="/">Home</Link>
-          <Link className={active("/about")?"on":""} to="/about">About</Link>
-          <Link className={active("/contact")?"on":""} to="/contact">Contact</Link>
-          <Link className={active("/help")?"on":""} to="/help">Help</Link>
-          <Link className={active("/register-campus")?"on":""} to="/register-campus">Register Campus</Link>
-          <Link className={active("/login")?"on":""} to="/login">Login / Sign up</Link>
-        </>}
-      </nav>
+    <header className="campus-rail"><div className="bar">
+      <Link className="brand" to={user ? "/dashboard" : "/"}>
+        <Icon name="campus"/><span>CampusCare<small>{user?.campusName || "Smart Campus"}</small></span>
+      </Link>
+      <nav aria-label="Main navigation">{links.map(path => {
+        const [label, icon] = destinations[path];
+        return <Link key={path} to={path} className={pathname === path ? "on" : ""} aria-current={pathname === path ? "page" : undefined}><Icon name={icon}/>{label}</Link>;
+      })}{user && <button className="nav-logout" onClick={logout}><Icon name="login"/>Log out</button>}</nav>
+      <div className="rail-landscape" aria-hidden="true"/>
     </div></header>
     <main>{children}</main>
-    {!user && <footer><div className="wrap"><div>CampusCare. One campus, everything in order.</div><div><Link to="/">Home</Link><Link to="/about">About</Link><Link to="/contact">Contact</Link></div></div></footer>}
+    {!user && <footer><div className="wrap"><b>CampusCare</b><div><Link to="/about">About</Link><Link to="/contact">Contact</Link></div></div></footer>}
   </>;
 }
 
-/* ─── Shared UI ──────────────────────────────── */
-function Page({title,children}){return <div className="wrap page-content"><h2>{title}</h2>{children}</div>}
+function Page({title, subtitle, action, children}) {
+  const {pathname} = useLocation();
+  const icon = destinations[pathname]?.[1] || "campus";
+  return <div className="wrap page-content"><div className="page-heading">
+    <span className={"icon-tile tile-" + icon}><Icon name={icon}/></span>
+    <div><h1>{title}</h1>{subtitle && <p>{subtitle}</p>}</div>{action}
+  </div>{children}</div>;
+}
 function Notice({text,type="error"}){return text?<p className={type==="success"?"auth-message success-msg":"auth-message"} role="alert">{text}</p>:null}
 function SearchBox({value,onChange,placeholder="Search..."}){
-  return <div className="search-wrap"><span aria-hidden="true">⌕</span><input type="search" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder}/></div>;
+  return <div className="search-wrap"><Icon name="search"/><input type="search" value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} aria-label={placeholder}/></div>;
 }
 function Badge({text}){
-  const colors={default:"#666",Submitted:"#c08b00",Open:"#c08b00","Under Review":"#1a6fa8",Assigned:"#1a6fa8","In Progress":"#9b4a00","Claim Pending":"#9b4a00",Resolved:"#1a7a3a",Rejected:"#b42318","active":"#1a7a3a","suspended":"#b42318","provisioning":"#9b4a00"};
-  return <span className="tag" style={{background:colors[text]||"#666",color:"#fff"}}>{text}</span>;
+  const colors={default:"#666",Submitted:"#805500",Open:"#096953","Under Review":"#1a6fa8",Assigned:"#1a6fa8","In Progress":"#9b4a00","Claim Pending":"#9b4a00",Resolved:"#1a7a3a",Rejected:"#b42318","active":"#1a7a3a","suspended":"#b42318","provisioning":"#9b4a00"};
+  return <span className="tag" style={{"--status-color":colors[text]||"#516482"}}>{text}</span>;
 }
 
 /* ─── Route Guards ───────────────────────────── */
@@ -80,8 +97,8 @@ function Home(){const {user}=useAuth();if(user)return <Navigate to="/dashboard" 
     <Link className="btn w" to="/login">Log in</Link>
     <Link className="btn wg" to="/register-campus">Register Campus</Link>
     </div></div>
-  <svg viewBox="0 0 320 200" role="img" aria-label="Campus building" fill="none" stroke="#fff" strokeWidth="1"><polygon points="30,76 160,20 290,76"/><line x1="40" y1="76" x2="280" y2="76"/><line x1="40" y1="84" x2="280" y2="84"/>{[0,1,2,3,4,5].map(i=><g key={i}><line x1={58+i*41} y1="84" x2={58+i*41} y2="168"/><line x1={70+i*41} y1="84" x2={70+i*41} y2="168"/></g>)}<line x1="30" y1="168" x2="290" y2="168"/><line x1="18" y1="176" x2="302" y2="176"/><line x1="6" y1="184" x2="314" y2="184"/></svg></div></section>
-  <section className="wrap lst">{modules.map(m=><Link className="ln" to="/login" key={m.path}><h3>{m.title}</h3><p>{m.description}</p><span>Explore</span></Link>)}</section>
+  <img className="home-campus-image" src={campusImage} alt="University courtyard and clock tower"/></div></section>
+  <section className="wrap lst">{modules.map(m=><Link className="ln" to="/login" key={m.path}><img className="service-cover" src={m.image} alt={m.alt}/><h3>{m.title}</h3><p>{m.description}</p></Link>)}</section>
   <section className="band"><div className="wrap cols"><div><h3>Students</h3><p>Post and track your own items and reports, join class groups and check your exam seat.</p></div><div><h3>Teachers</h3><p>Verify lost and found claims, manage class learning spaces and view assigned exam duties.</p></div><div><h3>Admin office</h3><p>Manage users, reports, exams, class communities and account access.</p></div></div></section>
 </>}
 function About(){return <div className="wrap page-content"><h2>About CampusCare</h2><div className="two"><div className="card"><p>CampusCare brings everyday campus services into one organised platform.</p><p>It combines Lost & Found, campus issue reporting, class communities and examination management in one place.</p></div><div className="card"><h3>Role-based access</h3><p className="mut"><b>Students:</b> post items and reports, participate in class groups and view their exam details.<br/><b>Teachers:</b> verify claims, manage assigned classes and view exam duties.<br/><b>Admin:</b> manage users, reports, exams and platform operations.</p></div></div></div>}
@@ -216,7 +233,7 @@ function Login({ defaultTab = "login" }){
 
   return (
     <div className="wrap page-content">
-      <div style={{ maxWidth: 520, margin: "0 auto" }}>
+      <div className="auth-panel"><span className="icon-tile"><Icon name="campus"/></span>
         <h2>Welcome to CampusCare</h2>
         <div className="tabs" style={{ marginBottom: 18 }}>
           <button type="button" className={tab === "login" ? "on" : ""} onClick={() => { setTab("login"); setMsg(""); }}>Log in</button>
@@ -225,7 +242,7 @@ function Login({ defaultTab = "login" }){
 
         {tab === "login" && (
           <form className="card" onSubmit={submitLogin}>
-            <h3>Account Log in</h3>
+            <h3>Campus account</h3>
             {campuses.length > 0 && (
               <div>
                 <label>Select university / campus</label>
@@ -321,6 +338,16 @@ function Login({ defaultTab = "login" }){
 }
 
 /* ─── Dashboard ──────────────────────────────── */
+function CampusBadges() {
+  const badges = [["star","Campus Helper"],["parcel","Lost & Found Hero"],["book","Study Contributor"],["heart","Active Member"]];
+  return <section className="card campus-badges" aria-label="Campus badges">
+    <div className="rewards-art" role="img" aria-label="Gold trophy with four campus service medals"/>
+    <div className="badge-collection"><h2>Campus badges</h2><ul>
+      {badges.map(([design, label]) => <li key={design}><span aria-hidden="true" className={"medal medal-" + design}/>{label}</li>)}
+    </ul></div>
+  </section>;
+}
+
 function Dashboard(){
   const {user}=useAuth();
   const [stats,setStats]=useState(null);const [err,setErr]=useState("");
@@ -328,14 +355,15 @@ function Dashboard(){
     const endpoint=isAdmin(user)?"/api/dashboard/admin":isTeacher(user)?"/api/dashboard/teacher":"/api/dashboard/student";
     api(endpoint).then(d=>setStats(d.stats)).catch(e=>setErr(e.message));
   },[user]);
-return <Page title={`Hello, ${user?.name || "User"}`}>
+return <Page title="Dashboard" subtitle={`Welcome back, ${user?.name || "User"}`}>
         <p className="mut">Signed in as <b>{user.role}</b>{stats&&user.campusName&&<> · {user.campusName}</>}</p>
+    <div className="grid dashboard-grid" style={{marginTop:28}}>{modules.map(m=><Link className="card mod" to={m.path} key={m.path}><img className="service-cover" src={m.image} alt={m.alt}/><h3>{m.title}</h3><p>{m.description}</p></Link>)}</div>
     <Notice text={err}/>
     {isAdmin(user)&&stats&&<AdminDashboard stats={stats}/>}
     {isTeacher(user)&&stats&&<TeacherDashboard stats={stats}/>}
     {!isAdmin(user)&&!isTeacher(user)&&stats&&<StudentDashboard stats={stats} user={user}/>}
     {!stats&&!err&&<p className="mut">Loading dashboard...</p>}
-    <div className="grid dashboard-grid" style={{marginTop:28}}>{modules.map(m=><Link className="card mod" to={m.path} key={m.path}><h3>{m.title}</h3><p>{m.description}</p><span>Explore</span></Link>)}</div>
+    <CampusBadges/>
   </Page>
 }
 function AdminDashboard({stats}){
@@ -379,7 +407,7 @@ function StudentDashboard({stats,user}){
   </>;
 }
 function StatCard({label,value}){
-  return <div className="card" style={{textAlign:"center",padding:20}}><div style={{fontSize:32,fontWeight:600}}>{value}</div><div className="mut" style={{fontSize:14,marginTop:4}}>{label}</div></div>;
+  return <div className="card stat-card"><span>{label}</span><strong>{value}</strong></div>;
 }
 
 /* ─── Profile ────────────────────────────────── */
@@ -578,7 +606,11 @@ function SecureImage({ src, alt }) {
 }
 
 
+const itemCategories = ["Electronics", "Documents", "Books", "Accessories", "Clothing", "Other"];
 function LostFound(){
+  const [category, setCategory] = useState("All");
+  const [posting, setPosting] = useState(false);
+  const [expanded, setExpanded] = useState(null);
   const {user}=useAuth();
   const [items,setItems]=useState([]);const [tab,setTab]=useState("Lost");const [search,setSearch]=useState("");
   const [error,setError]=useState("");const [busy,setBusy]=useState(false);
@@ -590,14 +622,14 @@ function LostFound(){
   useEffect(()=>{load()},[tab]);
   useEffect(()=>{api("/api/lost-found/claims").then(d=>setClaims(d.claims||[])).catch(()=>{})},[items.length]);
 
-  async function post(e){e.preventDefault();setBusy(true);setError("");try{
+  async function post(e){e.preventDefault();const submittedForm=e.currentTarget;setBusy(true);setError("");try{
     const fd=new FormData();
     Object.entries({...form,itemType:tab}).forEach(([k,v])=>fd.append(k,v));
     files.forEach(f=>fd.append("images",f));
     if(editId){await api(`/api/lost-found/${editId}`,{method:"PATCH",body:fd});}
     else{await api("/api/lost-found",{method:"POST",body:fd});}
     setForm({title:"",description:"",category:"Other",location:"",date:new Date().toISOString().slice(0,10)});
-    setFiles([]);setEditId(null);await load();
+    submittedForm.reset();setFiles([]);setEditId(null);setPosting(false);await load();
   }catch(e){setError(e.message)}finally{setBusy(false)}}
 
   async function markResolved(id){try{await api(`/api/lost-found/${id}/status`,{method:"PATCH",body:json({status:"Resolved"})});await load()}catch(e){setError(e.message)}}
@@ -670,18 +702,28 @@ async function sendClaim(id, type = "Ownership") {
 
   const isOwner=(i)=>String(i.postedBy?._id||i.postedBy)===String(user.id||user._id);
 
-  return <Page title="Lost & Found">
-    <div className="tabs"><button className={tab==="Lost"?"on":""} onClick={()=>setTab("Lost")}>Lost</button><button className={tab==="Found"?"on":""} onClick={()=>setTab("Found")}>Found</button></div>
+  const visibleItems = items.filter(item => category === "All" || item.category === category);
+  return <Page title="Lost & Found" subtitle="Find what’s lost. Return what’s found."
+    action={<button className="btn heading-action" aria-expanded={posting} onClick={()=>setPosting(!posting)}>{posting ? "Browse items" : "Report item"}</button>}>
     <Notice text={error}/>
-    <div className="two">
-      <div className="card">
-        <label>Search items</label><SearchBox value={search} onChange={setSearch} placeholder="Search item, place or description"/><button className="btn s" type="button" onClick={load}>Search</button>
-        <p className="mut">{items.length} items</p>
-        {items.map(i=><div className="it" key={i._id}>
-          <div className="row"><b>{i.title}</b><Badge text={i.status}/></div>
-          <p className="mut">{i.category} · {i.location} · {i.itemType}</p>
-          <p>{i.description}</p>
-          <div className="row">{(i.images||[]).map((im,n)=><SecureImage key={n} src={im.url||im} alt={i.title}/>)}</div>
+    <div className="tabs">{["Lost","Found"].map(type=><button key={type} className={tab===type?"on":""} onClick={()=>{setTab(type);setExpanded(null)}}>{type}</button>)}</div>
+    <div>
+      {!posting && <section className="card item-browser">
+        <form className="item-search" onSubmit={e=>{e.preventDefault();load()}}>
+          <SearchBox value={search} onChange={setSearch} placeholder="Search by item, location or description"/>
+          <button className="btn g" type="submit">Search</button>
+        </form>
+        <div className="category-list" aria-label="Item category">{["All", ...itemCategories].map(name=>
+          <button key={name} data-category={name} aria-pressed={category===name} onClick={()=>setCategory(name)}>{name}</button>)}</div>
+        <div className="item-grid">{visibleItems.map(i=><article className="item-card" key={i._id}>
+          <div className="item-photo art-box" data-category={i.category}><span className="category-caption">Category illustration</span>{i.images?.[0] && <SecureImage src={i.images[0].url||i.images[0]} alt={i.title}/>}</div>
+          <div className="item-info"><h3>{i.title}</h3>
+          <p className="item-meta"><Icon name="location"/>{i.location}</p>
+          {i.date && <p className="item-meta"><Icon name="exams"/>{new Date(i.date).toLocaleDateString()}</p>}
+          <div className="item-actions"><Badge text={i.status}/><button className="btn g s" aria-expanded={expanded===i._id} onClick={()=>setExpanded(expanded===i._id?null:i._id)}>{expanded===i._id?"Hide details":"View details"}</button></div>
+          {expanded===i._id && <div className="item-details">
+          <p className="mut">{i.category} · {i.itemType}</p><p>{i.description}</p>
+          <div className="row">{(i.images||[]).slice(1).map((im,n)=><SecureImage key={n} src={im.url||im} alt={i.title}/>)}</div>
           <p className="mut">Posted by {identityOf(i.postedBy)}</p>
           <div className="row" style={{flexWrap:"wrap",gap:8}}>
             {i.status!=="Resolved"&&(isOwner(i)||isAdmin(user))&&<button className="btn s" onClick={()=>markResolved(i._id)}>Mark resolved</button>}
@@ -777,10 +819,10 @@ async function sendClaim(id, type = "Ownership") {
 )}
 
           </div>
-        </div>)}
-        {!items.length&&<p className="mut">No items found.</p>}
-      </div>
-      <form className="card" onSubmit={post}>
+          </div>}</div></article>)}</div>
+        {!visibleItems.length&&<p className="empty-state item-empty" data-category={category}>No {tab.toLowerCase()} items in this view.</p>}
+      </section>}
+      <form hidden={!posting} className="card item-form" onSubmit={post}>
         <h3>{editId?"Edit":"Post a"} {tab.toLowerCase()} item</h3>
         <label>Item title</label><input required value={form.title} onChange={e=>setForm({...form,title:e.target.value})}/>
 <label>
@@ -795,7 +837,7 @@ async function sendClaim(id, type = "Ownership") {
       ? "Describe the item and mention where and when it can be collected. Example: Collect it from the college reception between 2 PM and 4 PM, and after it collect it from that particular place."
       : ""
   }
-/>        <label>Category</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{["Electronics","Documents","Books","Accessories","Clothing","Other"].map(x=><option key={x}>{x}</option>)}</select>
+/>        <label>Category</label><select value={form.category} onChange={e=>setForm({...form,category:e.target.value})}>{itemCategories.map(x=><option key={x}>{x}</option>)}</select>
         <label>Location</label><input required value={form.location} onChange={e=>setForm({...form,location:e.target.value})}/>
         <label>Date</label><input type="date" value={form.date} onChange={e=>setForm({...form,date:e.target.value})}/>
         <label>Photos {editId?"(leave empty to keep existing)":"(required)"}</label><input type="file" accept="image/jpeg,image/png,image/webp" multiple={!editId} required={!editId} onChange={e=>setFiles([...e.target.files])}/>
@@ -1495,6 +1537,7 @@ async function submitHelpMessage(id) {
 /* ─── Community ──────────────────────────────── */
 function Community(){
   const {user,token}=useAuth();
+  const [channel, setChannel] = useState("All posts");
   const [groups,setGroups]=useState([]);const [active,setActive]=useState(null);const [err,setErr]=useState("");
   const [name,setName]=useState("");const [communityMeta,setCommunityMeta]=useState({year:1,course:"",section:""});
   const [post,setPost]=useState({type:"Discussion",content:""});const [memberEmail,setMemberEmail]=useState("");
@@ -1516,7 +1559,7 @@ function Community(){
   async function saveEdit(e){e.preventDefault();try{await api(`/api/communities/${active._id}`,{method:"PATCH",body:json(editMeta)});setEditMode(false);const d=await api(`/api/communities/${active._id}`);setActive(d.group);load()}catch(e){setErr(e.message)}}
   async function deleteCommunity(){if(!confirm("Delete this community and all its posts?"))return;try{await api(`/api/communities/${active._id}`,{method:"DELETE"});setActive(null);load()}catch(e){setErr(e.message)}}
   async function addPost(e){e.preventDefault();try{await api(`/api/communities/${active._id}/posts`,{method:"POST",body:json(post)});setPost({type:"Discussion",content:""});const d=await api(`/api/communities/${active._id}`);setActive(d.group)}catch(e){setErr(e.message)}}
-  async function open(g){setActive(g);try{const d=await api(`/api/communities/${g._id}`);setActive(d.group)}catch(e){setErr(e.message)}}
+  async function open(g){setChannel("All posts");setActive(g);try{const d=await api(`/api/communities/${g._id}`);setActive(d.group)}catch(e){setErr(e.message)}}
   async function join(g){try{const d=await api(`/api/communities/${g._id}/join`,{method:"POST"});setActive(d.group);load()}catch(e){setErr(e.message)}}
   async function addMember(e){e.preventDefault();try{const d=await api(`/api/communities/${active._id}/members`,{method:"POST",body:json({email:memberEmail})});setActive(d.group);setMemberEmail("")}catch(x){setErr(x.message)}}
   async function removeMember(memberId){try{const d=await api(`/api/communities/${active._id}/members/${memberId}`,{method:"DELETE"});setActive(d.group)}catch(x){setErr(x.message)}}
@@ -1527,7 +1570,11 @@ function Community(){
   // Allowed post types by role
   const postTypes=isAdmin(user)?["Announcement"]:isTeacher(user)?["Announcement","Notes","Assignment","Discussion"]:roleOf(user)==="Student CR"?["Notes","Discussion"]:["Notes","Discussion"];
 
-  return <Page title="Class Community"><Notice text={err}/>
+  const visiblePosts = (active?.posts || []).filter(p =>
+    (channel === "All posts" || p.type === channel) &&
+    [p.content, p.type, identityOf(p.author)].join(" ").toLowerCase().includes(search.toLowerCase())
+  );
+  return <Page title="ClassSpace" subtitle="Your class communities, notes and discussions."><Notice text={err}/>
     <SearchBox value={search} onChange={setSearch} placeholder="Search communities, posts or members"/>
     {active ? <>
       <button className="btn g s" onClick={()=>{setActive(null);setEditMode(false)}}>← All communities</button>
@@ -1549,10 +1596,14 @@ function Community(){
           <p className="mut">Year {active.year} · {active.course} · Section {active.section}</p>
         </>
       }
-      <div className="two">
-        <div className="card"><h3>Community Feed</h3>
-          {(active.posts||[]).filter(p=>(p.content+" "+p.type+" "+identityOf(p.author)).toLowerCase().includes(search.toLowerCase())).map(p=><div className="it" key={p._id}><span className="tag">{p.type}</span> <b>{identityOf(p.author)}</b><p>{p.content}</p><p className="mut">{new Date(p.createdAt).toLocaleString()}</p></div>)}
-          {!active.posts?.length&&<p className="mut">No posts yet.</p>}
+      <div className="community-layout">
+        <aside className="card channel-list"><h3>Channels</h3>
+          {["All posts","Announcement","Discussion","Assignment","Notes"].map(type =>
+            <button key={type} aria-pressed={channel === type} onClick={()=>setChannel(type)}><span aria-hidden="true">#</span>{type}</button>)}
+        </aside>
+        <div className="card"><h3>{channel === "All posts" ? "Community feed" : channel}</h3>
+          {visiblePosts.map(p=><div className="it" key={p._id}><span className="tag">{p.type}</span> <b>{identityOf(p.author)}</b><p>{p.content}</p><p className="mut">{new Date(p.createdAt).toLocaleString()}</p></div>)}
+          {!visiblePosts.length&&<p className="mut">No posts in this view.</p>}
           {(isMember(active)||isOwner(active)||isAdmin(user))&&<form onSubmit={addPost}>
             <label>Post type</label>
             <select value={post.type} onChange={e=>setPost({...post,type:e.target.value})}>{postTypes.map(x=><option key={x}>{x}</option>)}</select>
@@ -1687,7 +1738,7 @@ function Examinations(){
   const exams=data.exams.filter(x=>(x.subject+" "+x.year+" "+x.time+" "+new Date(x.date).toLocaleDateString()).toLowerCase().includes(search.toLowerCase()));
   const yearSeats=year=>data.seats.filter(s=>Number(s.exam?.year)===year);
 
-  return <Page title="Examinations"><Notice text={err}/>
+  return <Page title="Examinations" subtitle="Schedules, seating plans and examination duties."><Notice text={err}/>
     {!isAdmin(user) && <section className="card" style={{marginBottom:18}}>
       <h3>Exam Schedule & Seating Charts</h3>
       {exams.map(x=><div className="it" key={`public-${x._id}`}>

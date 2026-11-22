@@ -179,10 +179,10 @@ const fld = (id, l, t = 'text', x = '') =>
 const opt = (a) => a.map((o) => `<option>${e(o)}</option>`).join('');
 // The four main modules shown on the home page and dashboard
 const mods = [
-  ['lost', 'Lost &amp; found', 'Check the found list, or post what you lost.'],
-  ['reports', 'Report system', 'Report damage or repairs and track the fix.'],
-  ['community', 'Class community', 'Groups, announcements, notes and assignments.'],
-  ['exam', 'Examinations', 'Your exam dates, rooms, seats and duties.']
+  ['lost', 'Lost &amp; Found', 'Check the found list, or post what you lost.', 'lost', 'Backpack, water bottle and keys'],
+  ['reports', 'Smart Campus', 'Report damage or repairs and track the fix.', 'reports', 'Maintenance checklist and safety cone'],
+  ['community', 'ClassSpace', 'Groups, announcements, notes and assignments.', 'community', 'Class notebooks and discussion bubbles'],
+  ['exam', 'Examinations', 'Your exam dates, rooms, seats and duties.', 'exams', 'Exam calendar, clock and pencil']
 ];
 
 // ===== 5. PAGES =====
@@ -190,8 +190,8 @@ const mods = [
 const V = {
   // --- Home page ---
   home: () => `<section class="hv"><div class="wrap hvi"><div><h1>One campus.<br>Everything in order.</h1><p>Lost belongings, campus issues, class groups and exams, managed in one calm place for students, teachers and the admin office.</p><div class="row"><a class="btn w" href="${me ? F.dashboard : F.login}">${me ? 'Open dashboard' : 'Log in'}</a><a class="btn wg" href="about.html">About CampusCare</a></div></div>
-<svg viewBox="0 0 320 200" role="img" aria-label="Campus building" fill="none" stroke="#fff" stroke-width="1"><polygon points="30,76 160,20 290,76"/><line x1="40" y1="76" x2="280" y2="76"/><line x1="40" y1="84" x2="280" y2="84"/>${[0, 1, 2, 3, 4, 5].map((i) => `<line x1="${58 + i * 41}" y1="84" x2="${58 + i * 41}" y2="168"/><line x1="${70 + i * 41}" y1="84" x2="${70 + i * 41}" y2="168"/>`).join('')}<line x1="30" y1="168" x2="290" y2="168"/><line x1="18" y1="176" x2="302" y2="176"/><line x1="6" y1="184" x2="314" y2="184"/></svg></div></section>
-<section class="wrap lst">${mods.map((m) => `<a class="ln" href="${F[me ? m[0] : 'login']}"><h3>${m[1]}</h3><p>${m[2]}</p><span>Explore</span></a>`).join('')}</section>
+<img class="home-campus-image" src="css/artwork/campus.jpg" alt="University courtyard and clock tower"></div></section>
+<section class="wrap lst">${mods.map((m) => `<a class="ln" href="${F[me ? m[0] : 'login']}"><img class="service-cover" src="css/artwork/${m[3]}.jpg" alt="${m[4]}"><h3>${m[1]}</h3><p>${m[2]}</p><span>Explore</span></a>`).join('')}</section>
 <section class="band"><div class="wrap cols"><div><h3>Students</h3><p>Post and track your own items and reports, join class groups and check your exam seat.</p></div><div><h3>Teachers</h3><p>Resolve lost and found cases, run class groups and see your exam duty.</p></div><div><h3>Admin office</h3><p>Manage users, roles, repair teams, exams and account security.</p></div></div></section>`,
   // --- About page ---
   about:
@@ -262,18 +262,11 @@ lost: () => {
     </div>
 
     <div class="two">
-      <div class="card">
+      <div class="card legacy-item-grid">
 
         ${list.length ? list.map((i) => `
-          <div class="it"
+          <div class="it legacy-item-card"
   data-search="${e(`${i.n} ${i.p} ${i.by} ${i.s}`).toLowerCase()}">
-
-            <div class="row">
-              <b>${e(i.n)}</b>
-              <span class="tag ${
-                i.s === 'Resolved' ? 'ok' : ''
-              }">${e(i.s)}</span>
-            </div>
 
             ${i.img ? `
 <img
@@ -281,9 +274,15 @@ lost: () => {
   alt="${e(i.n)}"
   onclick="showImage(this.src)"
   title="Click to view full image"
-  style="width:100%;max-width:260px;height:180px;object-fit:contain;margin:12px 0;cursor:zoom-in;"
+  class="legacy-item-photo"
 >
-            ` : ''}
+            ` : '<span class="module-art art-box" aria-hidden="true"></span>'}
+            <div class="row">
+              <b>${e(i.n)}</b>
+              <span class="tag ${
+                i.s === 'Resolved' ? 'ok' : ''
+              }">${e(i.s)}</span>
+            </div>
 
             <div class="mut">
               ${e(i.p)}. Posted by ${e(i.by)}
@@ -3124,11 +3123,30 @@ function render() {
         ['contact', 'Contact'],
         ['login', 'Login']
       ];
+  const icons = {home:'dashboard', dashboard:'dashboard', lost:'box', reports:'reports', community:'community', exam:'exams', users:'users', security:'security', data:'data', about:'campus', contact:'contact', login:'login'};
+  const icon = name => `<svg class="icon" aria-hidden="true"><use href="css/campus-icons.svg#${name}"></use></svg>`;
+  $('.brand').innerHTML = icon('campus') + '<span>CampusCare<small>Smart Campus</small></span>';
+  if (!$('.rail-landscape')) $('.bar').insertAdjacentHTML('beforeend','<div class="rail-landscape" aria-hidden="true"></div>');
   $('#nv').innerHTML =
-    ln.map((l) => `<a href="${F[l[0]]}" class="${l[0] == h ? 'on' : ''}">${l[1]}</a>`).join('') +
-    (me ? '<a href="#" onclick="out();return false">Log out</a>' : '');
+    ln.map((l) => `<a href="${F[l[0]]}" class="${l[0] == h ? 'on' : ''}">${icon(icons[l[0]])}${l[1]}</a>`).join('') +
+    (me ? `<a href="#" onclick="out();return false">${icon("login")}Log out</a>` : '');
   const c = (V[h] || V.home)();
   $('#m').innerHTML = h == 'home' ? c : `<div class="wrap">${c}</div>`;
+  const title = $('#m > .wrap > h2');
+  if (title) {
+    const heading = document.createElement('div');
+    heading.className = 'page-heading';
+    title.replaceWith(heading);
+    heading.innerHTML = '<span class="icon-tile tile-' + icons[h] + '">' + icon(icons[h]) + '</span>';
+    heading.append(title);
+  }
+  document.querySelectorAll('.grid .mod').forEach((link, index) => {
+    const module = mods[index];
+    if (module) link.insertAdjacentHTML('afterbegin', '<img class="service-cover" src="css/artwork/' + module[3] + '.jpg" alt="' + module[4] + '">');
+  });
+  if (h === 'dashboard') {
+    $('#m > .wrap').insertAdjacentHTML('beforeend', '<section class="card campus-badges" aria-label="Campus badges"><div class="rewards-art" role="img" aria-label="Gold trophy with four campus service medals"></div><div class="badge-collection"><h2>Campus badges</h2><ul><li><span class="medal medal-star" aria-hidden="true"></span>Campus Helper</li><li><span class="medal medal-parcel" aria-hidden="true"></span>Lost & Found Hero</li><li><span class="medal medal-book" aria-hidden="true"></span>Study Contributor</li><li><span class="medal medal-heart" aria-hidden="true"></span>Active Member</li></ul></div></section>');
+  }
   save();
 }
 render();

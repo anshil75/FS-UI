@@ -1,686 +1,143 @@
-/* ===== CampusCare design =====
-   Style: black and white, thin type (Jost), square corners, lots of space. */
-
-/* ----- 1. Basics: colours, fonts, page background ----- */
-* {
-  box-sizing: border-box;
-}
+/* CampusCare shared interface for the app and standalone pages. */
 :root {
-  --k: #0a0a0a;
-  --bg: #f5f5f4;
+  --k: #102341;
+  --bg: #f1f5fa;
   --w: #fff;
-  --mu: #6b6b68;
-  --ln: #dadad6;
-  --ok: #1f5c3f;
-  --f: 'Jost', 'Helvetica Neue', Arial, sans-serif;
-}
-html {
-  scroll-behavior: smooth;
-}
-body {
-  margin: 0;
-  background: var(--bg);
-  color: var(--k);
-  font: 300 17px/1.6 var(--f);
-}
-/* ----- 2. Headings, text, links ----- */
-h1,
-h2,
-h3 {
-  font-weight: 300;
-  line-height: 1.1;
-  margin: 0 0 0.5em;
-}
-h2 {
-  font-size: 30px;
-}
-h3 {
-  font-size: 20px;
-  font-weight: 400;
-}
-p {
-  margin: 0 0 1em;
-}
-a {
-  color: inherit;
-}
-a:focus-visible,
-button:focus-visible,
-input:focus-visible,
-select:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid var(--k);
-  outline-offset: 3px;
-}
-/* ----- 3. Page width and page titles ----- */
-.wrap {
-  max-width: 1180px;
-  margin: auto;
-  padding: 0 32px;
-}
-#m > .wrap {
-  padding-top: 56px;
-  padding-bottom: 96px;
-}
-#m > .wrap > h2 {
-  font-size: clamp(32px, 5vw, 54px);
-  margin-bottom: 32px;
-}
-/* ----- 4. Top bar and menu ----- */
-header {
-  background: var(--k);
-  color: #fff;
-  position: sticky;
-  top: 0;
-  z-index: 5;
-}
-.bar {
-  max-width: 1180px;
-  margin: auto;
-  padding: 18px 32px;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-.brand {
-  font: 500 15px var(--f);
-  letter-spacing: 0.32em;
-  text-decoration: none;
-  color: #fff;
-}
-nav {
-  display: flex;
-  gap: 22px;
-  flex-wrap: wrap;
-  margin-left: auto;
-}
-nav a {
-  font: 400 12px var(--f);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  text-decoration: none;
-  color: #a8a8a4;
-  padding: 4px 0;
-  border-bottom: 1px solid transparent;
-}
-nav a:hover,
-nav a.on {
-  color: #fff;
-  border-color: #fff;
-}
-/* ----- 5. Home page: hero, module list, role band ----- */
-.hv {
-  background: var(--k);
-  color: #fff;
-}
-.hvi {
-  display: grid;
-  grid-template-columns: 1.3fr 1fr;
-  gap: 56px;
-  align-items: center;
-  min-height: 76vh;
-  padding-top: 56px;
-  padding-bottom: 56px;
-}
-.hv h1 {
-  font-size: clamp(40px, 6.4vw, 80px);
-  letter-spacing: -0.015em;
-  margin-bottom: 0.4em;
-}
-.hv p {
-  color: #c9c9c5;
-  font-size: 19px;
-  max-width: 520px;
-  margin-bottom: 2em;
-}
-.hv svg {
-  width: 100%;
-  opacity: 0.9;
-}
-.lst {
-  padding-top: 72px;
-  padding-bottom: 72px;
-}
-.ln {
-  display: grid;
-  grid-template-columns: 1fr 1.3fr auto;
-  gap: 28px;
-  align-items: center;
-  padding: 38px 0;
-  border-top: 1px solid var(--ln);
-  text-decoration: none;
-}
-.ln:last-child {
-  border-bottom: 1px solid var(--ln);
-}
-.ln h3 {
-  font-size: clamp(24px, 3vw, 34px);
-  margin: 0;
-}
-.ln p {
-  margin: 0;
-  color: var(--mu);
-}
-.ln span {
-  font: 400 12px var(--f);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  border-bottom: 1px solid var(--k);
-  padding-bottom: 3px;
-}
-.ln:hover h3 {
-  letter-spacing: 0.01em;
-}
-.band {
-  background: var(--k);
-  color: #fff;
-  padding: 72px 0;
-}
-.cols {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 40px;
-}
-.cols p {
-  color: #b5b5b1;
-  margin: 0;
-}
-/* ----- 6. Cards and grids ----- */
-.card {
-  background: var(--w);
-  border: 1px solid var(--ln);
-  padding: 28px;
-}
-.grid {
-  display: grid;
-  gap: 20px;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-.two {
-  display: grid;
-  gap: 24px;
-  grid-template-columns: 2fr 1fr;
-  align-items: start;
-}
-.mod {
-  display: block;
-  text-decoration: none;
-  border-top: 2px solid var(--k);
-}
-.mod:hover {
-  background: var(--k);
-  color: #fff;
-}
-.mod:hover p {
-  color: #bbb;
-}
-.mod p {
-  color: var(--mu);
-  margin: 6px 0 0;
-  font-size: 15px;
-}
-/* ----- 7. Buttons ----- */
-.btn {
-  display: inline-block;
-  background: var(--k);
-  color: #fff;
-  border: 1px solid var(--k);
-  padding: 12px 26px;
-  font: 400 12px var(--f);
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  text-decoration: none;
-  cursor: pointer;
-}
-.btn:hover {
-  background: #2a2a2a;
-}
-.btn.g {
-  background: transparent;
-  color: var(--k);
-}
-.btn.g:hover {
-  background: var(--k);
-  color: #fff;
-}
-.btn.s {
-  padding: 7px 14px;
-  font-size: 11px;
-}
-.btn.w {
-  background: #fff;
-  color: var(--k);
-  border-color: #fff;
-}
-.btn.wg {
-  background: transparent;
-  color: #fff;
-  border-color: #777;
-}
-.btn.wg:hover {
-  border-color: #fff;
-}
-/* ----- 8. Form fields ----- */
-input,
-select,
-textarea {
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid var(--ln);
-  border-radius: 0;
-  background: #fff;
-  color: var(--k);
-  font: 300 16px var(--f);
-}
-label {
-  display: block;
-  font: 400 12px var(--f);
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--mu);
-  margin: 16px 0 6px;
-}
-/* ----- 9. Status tags, tabs, tables ----- */
-.tag {
-  display: inline-block;
-  padding: 1px 10px;
-  border: 1px solid var(--ln);
-  font: 400 11px var(--f);
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--mu);
-}
-.tag.ok {
-  color: var(--ok);
-  border-color: var(--ok);
-}
-.tabs {
-  display: flex;
-  gap: 26px;
-  flex-wrap: wrap;
-  margin-bottom: 24px;
-  border-bottom: 1px solid var(--ln);
-}
-.tabs button {
-  background: none;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  padding: 10px 0;
-  margin-bottom: -1px;
-  font: 400 12px var(--f);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--mu);
-  cursor: pointer;
-}
-.tabs button.on {
-  color: var(--k);
-  border-color: var(--k);
-}
-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 16px;
-}
-th,
-td {
-  text-align: left;
-  padding: 12px 8px;
-  border-bottom: 1px solid var(--ln);
-  vertical-align: top;
-}
-th {
-  font: 400 11px var(--f);
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--mu);
-}
-.ov {
-  overflow-x: auto;
-}
-/* ----- 10. Small helpers ----- */
-.mut {
-  color: var(--mu);
-  font-size: 15px;
-}
-.row {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.it {
-  padding: 16px 0;
-  border-bottom: 1px solid var(--ln);
-}
-.it:last-of-type {
-  border: 0;
-}
-/* ----- 11. Footer and pop-up message ----- */
-footer {
-  background: var(--k);
-  color: #a8a8a4;
-  padding: 40px 0;
-  font-size: 14px;
-}
-footer .wrap {
-  display: flex;
-  gap: 24px;
-  flex-wrap: wrap;
-  justify-content: space-between;
-}
-footer a {
-  text-decoration: none;
-  margin-right: 18px;
-}
-footer a:hover {
-  color: #fff;
-}
-#t {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  transform: translateX(-50%);
-  background: var(--k);
-  color: #fff;
-  padding: 12px 22px;
-  font-size: 14px;
-  opacity: 0;
-  transition: opacity 0.25s;
-  pointer-events: none;
-  z-index: 9;
-}
-#t.on {
-  opacity: 1;
-}
-/* ----- 12. Mobile screens and reduced motion ----- */
-@media (max-width: 760px) {
-  .hvi,
-  .two,
-  .cols,
-  .ln {
-    grid-template-columns: 1fr;
-  }
-  .wrap,
-  .bar {
-    padding-left: 20px;
-    padding-right: 20px;
-  }
-  .hvi {
-    min-height: auto;
-  }
-  nav {
-    margin-left: 0;
-    gap: 16px;
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    scroll-behavior: auto !important;
-  }
-}
+  --mu: #55677e;
+  --ln: #dce5ef;
+  --ok: #08725e;
+  --blue: #0968c9;
+  --rail: #041d32;
+  --rail-width: 218px;
+  --f: "Segoe UI", Roboto, Arial, sans-serif;
+}
+* {box-sizing:border-box}
+body {margin:0; background:var(--bg); color:var(--k); font:400 15px/1.5 var(--f); min-height:100vh}
+body[data-p], #root {display:flex; flex-direction:column; min-height:100vh}
+main {flex:1; min-width:0}
+main, footer {margin-left:var(--rail-width)}
+h1,h2,h3,h4,p {margin:0}
+h1,h2,h3,h4 {line-height:1.2; letter-spacing:-.025em}
+h1,h2 {font-size:clamp(24px,2.4vw,34px); font-weight:720}
+h3 {font-size:18px; font-weight:680}
+h4 {font-size:16px}
+p + p,.card h3 + p,.card h4 + p {margin-top:8px}
+a {color:var(--blue)}
+button,input,select,textarea {font:inherit}
+button {cursor:pointer}
+button:disabled {opacity:.6; cursor:wait}
+:focus-visible {outline:3px solid #389cef; outline-offset:3px}
+img,svg {max-width:100%}
+.wrap {width:100%; max-width:1600px; margin:auto; padding-inline:clamp(14px,2vw,32px)}
+.wrap.page-content,#m>.wrap {padding-block:20px 44px}
+.page-heading,.page-content>h2,#m>.wrap>h2 {
+  background:white; border:1px solid var(--ln); border-radius:10px; padding:18px 20px; margin-bottom:16px;
+}
+.page-heading {display:flex; align-items:center; gap:14px; flex-wrap:wrap}
+.page-heading p,.mut,.item-meta {color:var(--mu); font-size:14px}
+.page-heading p {margin-top:3px}
+.heading-action {margin-left:auto}
+.icon {display:inline-block; width:20px; height:20px; flex:none}
+.icon-tile {display:inline-grid; place-items:center; flex:none; width:46px; height:46px; border-radius:12px; background:#e6f1ff; color:#0969c8}
+.icon-tile .icon {width:26px; height:26px}
+.tile-community,.tile-users {background:#efeaff;color:#7458bd}
+.tile-reports {background:#fff0e9;color:#bd532d}
+.tile-exams {background:#e1f5ef;color:#08795f}
+header.campus-rail,body[data-p]>header {
+  position:fixed; inset:0 auto 0 0; z-index:5; width:var(--rail-width); color:white;
+  background:linear-gradient(160deg,#092940 0%,var(--rail) 56%,#03192b 100%);
+}
+.bar {display:flex; flex-direction:column; height:100%; overflow:auto; padding:24px 10px 12px}
+.brand {display:flex; align-items:center; gap:10px; padding:0 8px; margin-bottom:27px; color:white; font-size:22px; font-weight:700; line-height:1.05; letter-spacing:-.03em; text-decoration:none}
+.brand .icon {width:35px; height:35px; color:#18c9df}
+.brand small {display:block; margin-top:5px; color:#c4d8e4; font-size:12px; font-weight:450; letter-spacing:0}
+.bar nav {display:flex; flex-direction:column; gap:4px}
+.bar nav a,.bar .nav-logout {
+  display:flex; align-items:center; gap:12px; padding:10px 12px; border:0; border-radius:6px; margin:0;
+  color:#e5eff8; background:transparent; text-decoration:none; font:500 14px/1.4 var(--f); text-align:left; white-space:nowrap
+}
+.bar nav a:hover,.bar .nav-logout:hover {background:#14384f}
+.bar nav .on {background:var(--blue); color:white}
+.bar nav .icon {width:18px;height:18px}
+.rail-landscape {margin-top:auto; min-height:110px; background:url("./campus-skyline.svg") center bottom/100% auto no-repeat}
+.card,.year-card,.ln,.band .cols>div {background:white; border:1px solid var(--ln); border-radius:10px; padding:20px; min-width:0; box-shadow:0 2px 6px #18395506}
+.card {overflow-wrap:anywhere}
+.grid,.two,.cols,.lst {display:grid; gap:14px}
+.grid,.lst {grid-template-columns:repeat(auto-fit,minmax(min(218px,100%),1fr))}
+.two {grid-template-columns:minmax(0,1.45fr) minmax(0,1fr); align-items:start}
+.two>* {min-width:0}
+.cols {grid-template-columns:repeat(3,minmax(0,1fr))}
+.mod,.ln {display:block;color:var(--k);text-decoration:none}
+.mod:hover,.ln:hover,.year-card:hover,.community-card:hover {border-color:#86b6e5; background:#f9fcff}
+.mod .icon-tile,.ln .icon-tile {margin-bottom:14px}
+.mod p,.ln p,.cols p {color:var(--mu);margin-top:6px;font-size:14px}
+.hv {margin:20px clamp(14px,2vw,32px) 0; border:1px solid var(--ln); background:white; border-radius:12px; overflow:hidden}
+.hvi {display:grid;grid-template-columns:1.2fr 1fr;align-items:stretch; padding:0}
+.hvi>div {padding:clamp(24px,3.5vw,58px)}
 
-
-
-.emergency-box {
-  margin-top: 16px;
-  padding: 20px;
-  border: 1px solid #e2d6d0;
-  background: #fffaf7;
+.hv h1 {font-size:clamp(32px,3.4vw,54px);line-height:1.08}
+.hv p {margin:15px 0 22px;color:var(--mu);max-width:52ch}
+.lst {padding-block:16px}
+.band {padding-bottom:24px}
+.btn,.category-list button,.tabs button {display:inline-flex;align-items:center;justify-content:center;border:1px solid transparent;border-radius:6px;font:600 14px/1.3 var(--f);text-decoration:none;cursor:pointer}
+.btn,.btn.w {background:var(--blue);color:white;padding:9px 15px}
+.btn:hover {background:#0756aa}
+.btn.g,.btn.wg {background:white;color:#075cac;border-color:#b9cde3}
+.btn.g:hover,.btn.wg:hover {background:#edf6ff}
+.btn.s {font-size:13px;padding:6px 10px}
+label {display:block;font-size:14px;font-weight:600;color:#354961;margin:14px 0 5px}
+input,select,textarea {width:100%;min-width:0;max-width:100%;padding:10px 12px;background:#fff;color:var(--k);border:1px solid #bdccdc;border-radius:6px}
+input[type=checkbox],input[type=radio] {width:auto}
+textarea {resize:vertical;min-height:78px}
+form>p,.card>p:has(.btn),form>.btn {margin-top:14px}
+.password-wrap {position:relative}
+.password-wrap input {padding-right:48px}
+.password-toggle {position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--mu)}
+.tabs,.category-list {display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin:12px 0}
+.tabs button,.category-list button {padding:7px 13px;border-radius:20px;background:white;color:#36506b;border-color:var(--ln)}
+.tabs button.on,.category-list button[aria-pressed=true] {color:white;background:var(--blue);border-color:var(--blue)}
+.tag {display:inline-block;border-radius:5px;font-size:12px;font-weight:650;padding:3px 8px;color:var(--status-color,#245b91);background:color-mix(in srgb,var(--status-color,#2671bf) 11%,white)}
+.tag.ok {background:#e1f5ed;color:var(--ok)}
+table {width:100%;border-collapse:collapse;font-size:14px}
+th,td {text-align:left;padding:10px;border-bottom:1px solid var(--ln);vertical-align:top}
+th {color:#455d76;background:#f4f7fb;font-weight:600}
+.ov {max-width:100%;overflow:auto}
+.row {display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.it {padding:14px 0;border-bottom:1px solid var(--ln)}
+.it:last-of-type {border-bottom:0}
+.it>p {margin-block:5px}
+.emergency-box {margin-top:16px;padding:18px;border:1px solid #f2ceb6;background:#fff8f1;border-radius:8px}
+footer {padding:16px 0;border-top:1px solid var(--ln);font-size:13px;color:var(--mu)}
+footer .wrap {display:flex;justify-content:space-between;gap:14px;flex-wrap:wrap}
+footer a {text-decoration:none;margin-left:16px}
+#t {position:fixed;bottom:18px;left:50%;transform:translateX(-50%);padding:9px 16px;background:var(--rail);color:white;border-radius:7px;opacity:0;pointer-events:none;z-index:9}
+#t.on {opacity:1}
+.legacy-item-grid {display:grid;grid-template-columns:repeat(auto-fit,minmax(min(190px,100%),1fr));gap:13px}
+.legacy-item-grid>.legacy-item-card {align-self:start;padding:12px;border:1px solid var(--ln);border-radius:8px}
+.legacy-item-photo {display:block;width:calc(100% + 24px);max-width:none;aspect-ratio:1.9;object-fit:cover;border-radius:8px 8px 0 0;margin:-12px -12px 12px;cursor:zoom-in}
+body[data-p=login] #m>.wrap>div {margin-inline:auto;background:white;border:1px solid var(--ln);border-radius:12px;padding:24px}
+body[data-p=login] #m .card {border:0;box-shadow:none;padding:0}
+@media(max-width:1100px){:root {--rail-width:194px}}
+@media(max-width:900px){.two,.cols {grid-template-columns:1fr}}
+@media(max-width:720px){
+  header.campus-rail,body[data-p]>header {position:sticky;top:0;width:auto}
+  .bar {padding:10px 12px;overflow:visible;gap:8px}
+  .brand {margin:0;padding:0;font-size:18px}
+  .brand .icon {width:28px;height:28px}
+  .brand small {display:inline;margin-left:9px}
+  .bar nav {flex-direction:row;overflow-x:auto;scrollbar-width:thin;gap:4px}
+  .bar nav a,.bar .nav-logout {padding:7px 9px;gap:6px;font-size:13px}
+  .bar nav .icon {width:15px;height:15px}
+  .rail-landscape {display:none}
+  main,footer {margin-left:0}
+  .page-heading {padding:14px;gap:10px}
+  .card {padding:16px}
+  .wrap.page-content,#m>.wrap {padding-top:12px}
+  .hv {margin-top:12px}
+  .hvi {grid-template-columns:1fr}
+  
 }
-
-.emergency-box h3 {
-  margin-top: 0;
-}
-
-.emergency-box p {
-  font-size: 14px;
-  line-height: 1.6;
-}
-
-.emergency-box .btn {
-  display: inline-block;
-  margin-top: 8px;
-  text-decoration: none;
-}
-
-
-.password-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.password-wrap input {
-  width: 100%;
-  padding-right: 48px;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 20px;
-  color: #555;
-  padding: 8px;
-}
-
-
-
-/* for view's===================================================================== */
-/* ===== Layout fixes: paste this at the very END of css/style.css ===== */
-
-/* ----- A. Footer always sits at the bottom of the screen -----
-   Short pages (About, Data and backup...) no longer show a light strip under the footer. */
-body {
-  min-height: 100vh;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
-main {
-  flex: 1 0 auto;
-}
-footer {
-  flex-shrink: 0;
-}
-
-/* ----- B. Home page hero fills the whole screen -----
-   The light section below it only appears when you scroll. */
-.hvi {
-  min-height: calc(100vh - 60px);
-  min-height: calc(100dvh - 60px);
-}
-
-/* ----- C. Small laptops (up to 1100px wide) ----- */
-@media (max-width: 1100px) {
-  .wrap,
-  .bar {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-  .hvi {
-    gap: 32px;
-  }
-  .two {
-    grid-template-columns: 1fr;
-  }
-  nav {
-    gap: 16px;
-  }
-}
-
-/* ----- D. Tablets (up to 900px wide) ----- */
-@media (max-width: 900px) {
-  .hvi {
-    grid-template-columns: 1fr;
-    align-content: center;
-    padding-top: 40px;
-    padding-bottom: 40px;
-  }
-  .hv svg {
-    max-width: 420px;
-    margin: 0 auto;
-  }
-  .cols {
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-  .ln {
-    grid-template-columns: 1fr;
-    gap: 8px;
-    padding: 28px 0;
-  }
-  .ln span {
-    justify-self: start;
-  }
-  .band {
-    padding: 56px 0;
-  }
-}
-
-/* ----- E. Phones (up to 600px wide) ----- */
-@media (max-width: 600px) {
-  body {
-    font-size: 16px;
-  }
-  .wrap,
-  .bar {
-    padding-left: 16px;
-    padding-right: 16px;
-  }
-  .bar {
-    padding-top: 14px;
-    padding-bottom: 14px;
-    gap: 10px 16px;
-  }
-  nav {
-    gap: 6px 14px;
-  }
-  nav a {
-    font-size: 11px;
-    letter-spacing: 0.12em;
-  }
-  #m > .wrap {
-    padding-top: 36px;
-    padding-bottom: 64px;
-  }
-  .hvi {
-    min-height: calc(100dvh - 130px);
-  }
-  .hv .row .btn {
-    flex: 1 1 100%;
-    text-align: center;
-  }
-  .card {
-    padding: 20px;
-  }
-  .btn {
-    padding: 11px 20px;
-  }
-  .ov table {
-    min-width: 480px;
-    font-size: 14px;
-  }
-  th,
-  td {
-    padding: 10px 6px;
-  }
-  footer .wrap {
-    flex-direction: column;
-    gap: 12px;
-  }
-  #t {
-    max-width: 90vw;
-    text-align: center;
-  }
-}
-
-/* Never let pictures or drawings push the page wider than the screen */
-img,
-svg {
-  max-width: 100%;
-}
-
-/* header sahi for screen...======================================================================= */
-/* ===== Header fix: paste at the very END of css/style.css (after responsive-fix) =====
-   On small screens the menu stays on ONE line and scrolls sideways,
-   so the header stays short and the page gets more room. */
-
-nav {
-  padding-bottom: 2px;
-}
-nav a {
-  white-space: nowrap;
-}
-
-/* Small laptops and tablets: brand and menu share one row, menu scrolls */
-@media (max-width: 1100px) {
-  .bar {
-    flex-wrap: nowrap;
-    gap: 20px;
-  }
-  .brand {
-    flex: none;
-  }
-  nav {
-    flex: 0 1 auto;
-    min-width: 0;
-    flex-wrap: nowrap;
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
-    scrollbar-color: #444 transparent;
-  }
-  nav a {
-    flex: none;
-  }
-}
-
-/* Tablets and phones: hide the scrollbar, swipe instead */
-@media (max-width: 900px) {
-  nav {
-    scrollbar-width: none;
-  }
-  nav::-webkit-scrollbar {
-    display: none;
-  }
-}
-
-/* Phones: brand on top, menu on its own row (still one line, swipe to see Log out) */
-@media (max-width: 600px) {
-  .bar {
-    flex-wrap: wrap;
-    gap: 8px 16px;
-  }
-  nav {
-    flex: 1 1 100%;
-    margin-left: 0;
-    gap: 18px;
-  }
-  nav a {
-    padding: 6px 0;
-  }
-}
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-}
-
-main {
-  flex: 1 0 auto;
-}
-
-
-
-
+@media(prefers-reduced-motion:reduce){* {scroll-behavior:auto!important;transition:none!important}}
 /* Click to zoom - reusable image styles */
 
 .zoomable-image {
@@ -761,3 +218,56 @@ main {
     top: 8px;
   }
 }
+
+/* Locally hosted artwork for campus services. */
+.art-box,.tile-box {--service-art:url("./artwork/lost.jpg")}
+.art-reports,.tile-reports {--service-art:url("./artwork/reports.jpg")}
+.art-community,.tile-community {--service-art:url("./artwork/community.jpg")}
+.art-exams,.tile-exams {--service-art:url("./artwork/exams.jpg")}
+.campus-portrait {display:block; align-self:stretch; min-height:220px; background:#ddf0fa url("./artwork/campus.jpg") center/cover no-repeat}
+.module-art {display:block; height:clamp(125px,12vw,195px); margin:-20px -20px 15px; border-radius:9px 9px 0 0; background:#e0edf6 var(--service-art) center/cover no-repeat}
+.page-heading .icon-tile:is(.tile-box,.tile-reports,.tile-community,.tile-exams) {width:84px;height:60px;background:#e0edf6 var(--service-art) center/cover no-repeat;border-radius:8px}
+.page-heading .icon-tile:is(.tile-box,.tile-reports,.tile-community,.tile-exams) svg {display:none}
+.auth-panel::before,body[data-p=login] #m>.wrap>div::before {content:"";display:block;height:140px;border-radius:8px;margin-bottom:18px;background:#dbeaf5 url("./artwork/campus.jpg") center 48%/cover no-repeat}
+.auth-panel>.icon-tile {display:none}
+.item-photo.art-box {background:#e6eef8 var(--service-art) center/cover no-repeat}
+.item-empty::before,body[data-p=lost] .legacy-item-grid>p:only-child::before {content:"";display:block;width:145px;aspect-ratio:1.5;margin:0 auto 12px;background:url("./artwork/lost.jpg") center/cover;border-radius:12px}
+.legacy-item-card>.module-art {margin:-12px -12px 12px;height:130px}
+.campus-badges {display:grid;grid-template-columns:minmax(180px,.9fr) minmax(0,1.5fr);padding:0;margin-top:18px;overflow:hidden}
+.rewards-art {background:#c4e5f5 url("./artwork/rewards.jpg") center/contain no-repeat;min-height:195px}
+.badge-collection {padding:clamp(16px,2.2vw,30px)}
+.badge-collection h2 {font-size:21px}
+.badge-collection ul {list-style:none;padding:0;margin:14px 0 0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.badge-collection li {display:flex;gap:10px;align-items:center;border:1px solid var(--ln);padding:9px;border-radius:8px;font-size:14px;font-weight:600}
+.medal {width:42px;height:42px;flex:none;border-radius:50%;background-position:center;background-size:cover}
+.medal-star {background-image:url("./artwork/badge-star.jpg")}
+.medal-parcel {background-image:url("./artwork/badge-parcel.jpg")}
+.medal-book {background-image:url("./artwork/badge-book.jpg")}
+.medal-heart {background-image:url("./artwork/badge-heart.jpg")}
+@media(max-width:720px){
+  .campus-portrait {min-height:160px;background-size:contain;background-color:#dfedf7}
+  .campus-badges {grid-template-columns:1fr;padding:0}
+  .rewards-art {min-height:150px}
+  .badge-collection li {gap:6px;padding:6px;font-size:13px}
+  .medal {width:32px;height:32px}
+  .card.mod>.module-art {margin:-16px -16px 12px}
+  .module-art {height:160px}
+  .page-heading .icon-tile:is(.tile-box,.tile-reports,.tile-community,.tile-exams) {width:54px;height:46px}
+}
+[data-category="Electronics"] {--category-art:url("./artwork/electronics.jpg")}
+[data-category="Documents"] {--category-art:url("./artwork/documents.jpg")}
+[data-category="Books"] {--category-art:url("./artwork/books.jpg")}
+[data-category="Clothing"] {--category-art:url("./artwork/clothing.jpg")}
+[data-category="Accessories"] {--category-art:url("./artwork/lost.jpg")}
+.item-photo.art-box,.item-empty::before {background-image:var(--category-art,url("./artwork/lost.jpg"))}
+.category-list button[data-category]:not([data-category="All"]):not([data-category="Other"])::before {content:"";width:28px;height:24px;margin-right:6px;border-radius:5px;background:var(--category-art) center/cover}
+.category-caption {align-self:end;justify-self:start;margin:7px;padding:2px 6px;border-radius:4px;font-size:11px;color:#425871;background:#fffffff0}
+.item-photo:has(>.secure-preview-image) .category-caption {display:none}
+
+/* Image-first service cards on both home screens. */
+.home-campus-image {display:block;width:100%;height:100%;max-height:320px;object-fit:cover;align-self:center}
+.ln:has(.service-cover),.mod:has(.service-cover) {padding:0 0 16px;overflow:hidden}
+.service-cover {display:block;width:100%;aspect-ratio:3/2;object-fit:cover;margin-bottom:14px}
+.service-cover~h3,.service-cover~p,.service-cover~span {margin-inline:16px}
+@media(min-width:1100px){.wrap.lst,.dashboard-grid {grid-template-columns:repeat(4,minmax(0,1fr))}}
+@media(max-width:720px){.home-campus-image {height:160px;object-position:center 49%}}
